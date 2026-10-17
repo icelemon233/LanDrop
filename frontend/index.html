@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#FFFCF6" />
+    <meta name="description" content="隔空传，在同一个 Wi-Fi 下扫码连接电脑和手机，直接传送安装包与文件。" />
+    <meta name="author" content="Cinna" />
+    <title>隔空传 · 扫码传文件</title>
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicon-48.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/assets/style.css" />
+    <script type="module" src="/assets/app.js"></script>
+  </head>
+  <body>
+    <div id="app"><div class="boot"><img src="/assets/cinna-icon.png" alt="" width="56" height="56" /><p>正在打开隔空传…</p></div></div>
+    <noscript>请在浏览器中启用 JavaScript 后使用隔空传。</noscript>
+    <div id="transfers" class="transfers" aria-live="polite"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <dialog id="dialog"></dialog>
+    <input id="file-input" type="file" multiple hidden />
+  </body>
+</html>

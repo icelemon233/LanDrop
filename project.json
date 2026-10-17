@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "projectName": "LanDrop",
+  "displayName": "隔空传",
+  "series": "Cinna",
+  "developer": "Cinna",
+  "platforms": ["windows-x64", "android-browser"],
+  "brand": {
+    "version": "2026-10-17.LanDrop.1",
+    "source": "resources/brand/landrop-source.png",
+    "identityReference": "resources/cinna-portrait.png",
+    "styleReference": "resources/brand/series-reference.png",
+    "style": "Cinna application icon series",
+    "generator": "OpenAI imagegen",
+    "windowsIcon": "resources/app.ico",
+    "interfaceIcon": "frontend/assets/cinna-icon.png",
+    "readmeIcon": "docs/assets/icon.png"
+  }
+}

@@ -1,0 +1,30 @@
+const paths: Record<string, string> = {
+  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  'eye-off': '<path d="m3 3 18 18M10 5a11 11 0 0 1 12 7 16 16 0 0 1-3 4M6 6a17 17 0 0 0-4 6s4 7 10 7a10 10 0 0 0 5-1M10 10a3 3 0 0 0 4 4"/>',
+  settings: '<path d="M9 3h6l1 4 4 1v8l-4 1-1 4H9l-1-4-4-1V8l4-1 1-4Z"/><circle cx="12" cy="12" r="3"/>',
+  send: '<path d="m21 3-6.5 18-4-7.5L3 9.5 21 3ZM21 3 10.5 13.5"/>',
+  inbox: '<path d="M4 4h16v16H4zM4 13h5l2 3h2l2-3h5M12 5v6m-3-3 3 3 3-3"/>',
+  history: '<path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 7v5l3 2"/>',
+  computer: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/>',
+  phone: '<rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4m-3 14h2"/>',
+  upload: '<path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/>',
+  download: '<path d="M12 3v13m-5-5 5 5 5-5M4 16v4h16v-4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  folder: '<path d="M3 7V5h6l2 3h10v12H3V7Z"/>',
+  file: '<path d="M14 3H5v18h14V8l-5-5ZM14 3v6h5M8 13h8m-8 4h5"/>',
+  apk: '<path d="M7 10h10v8H7zM7 13H4m16 0h-3M9 18v3m6-3v3M8 6 6 3m10 3 2-3M7 10a5 5 0 0 1 10 0"/><path d="M10 8h.01M14 8h.01"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+  copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
+  refresh: '<path d="M20 9a8 8 0 0 0-14-5L3 7m0-5v5h5M4 15a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/>',
+  close: '<path d="m6 6 12 12M6 18 18 6"/>',
+  check: '<path d="m5 12 4 4L19 6"/>',
+  arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
+  wifi: '<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0M12 20h.01"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3h.01"/>',
+  power: '<path d="M12 2v10M6 5a9 9 0 1 0 12 0"/>',
+  trash: '<path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/>',
+  link: '<path d="m10 14 4-4M8 16l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m0 2 1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(2 -1)"/>',
+};
+export function icon(name: string, className = ''): string {
+  return `<svg class="icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.file}</svg>`;
+}

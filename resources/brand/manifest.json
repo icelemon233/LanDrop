@@ -1,0 +1,19 @@
+{
+  "brandVersion": "2026-10-17.LanDrop.1",
+  "series": "Cinna",
+  "projectName": "LanDrop",
+  "developer": "Cinna",
+  "sourceSha256": "6cead5c176ef12cb4a25316465ab69e7a81b3d87cd8a7a10ce983e41be2ffa54",
+  "files": {
+    "resources/app.ico": "f3f871775fab6365e2bd7e45649b409c76d7d604c54fb56ea8f35bb190bb29a3",
+    "resources/icon-master.png": "ed1998b8efad5c2c220fa899a5de45c6f57a939f822ac5f8bf9efc442fbc558e",
+    "resources/installer-sidebar.bmp": "c19065acded1411bebc79563ed10d446c70b251634a3bba5eeb203aac52ae92c",
+    "resources/installer-header.bmp": "60e59a4909bcee6fba86b5cafd5478f073ee9a94b06ecf6d616860526e6ce9c1",
+    "docs/assets/icon.png": "29ab8b5e83e2528d292867b4e4c177974c122e5e78f89b905a59865f9327b899",
+    "frontend/assets/cinna-icon.png": "78e786ceb8ddedc175f0dded717ea9223e44394baac2a5378bef78481eaa5be8",
+    "frontend/assets/apple-touch-icon.png": "f5b48aeb7a73f6c871e9a9b8246a3fb03fdabe2ee22da7bb207b03fe81b44efa",
+    "frontend/assets/favicon-16.png": "cbf4766f99b954fd2cdcc14f2ae18db05922920e2b9a52b7ee3de1ccaa5bf089",
+    "frontend/assets/favicon-32.png": "8ed1a7e36533846ad3fec32d29195770bf1f5ab2655ce640dd6151f0f0eaf172",
+    "frontend/assets/favicon-48.png": "28156efed77dac89cce26fb8a11d78404151c027b5ce187a5e836120bd3f9574"
+  }
+}

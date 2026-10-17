@@ -1,0 +1,17 @@
+node_modules/
+landrop/web/
+__pycache__/
+*.pyc
+build/
+dist/
+.venv/
+*.spec
+
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+.local/
+*.log
