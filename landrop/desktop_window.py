@@ -110,9 +110,9 @@ class DesktopWindow:
         with self.lock:
             if self.dialog_busy:
                 return False
-        if not self.allow_close and (self.state.uploads.active_count() or self.state.active_downloads):
-            if not self.window.create_confirmation_dialog('退出 LanDrop', '退出会中断正在传输的文件。已保存的文件和共享设置会保留。'):
-                return False
+        if not self.allow_close:
+            self.window.minimize()
+            return False
         self.state.stopping.set()
         self.state.scan_requested.set()
         self.state.uploads.cancel_all()

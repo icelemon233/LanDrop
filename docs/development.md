@@ -24,7 +24,7 @@ Synthetic UI fixtures require both `--test-data` and a separate `--state-dir`. T
 | state, files | Catalog, background scans, path and opened-handle checks |
 | sessions, transfers | Connection lifecycle, owner-bound idempotent uploads and final commit |
 | server | HTTP, host/origin checks, separate local/LAN worker budgets, socket cleanup |
-| desktop_window | Independent Windows window, UI-thread file pickers, restricted navigation, activation and shutdown |
+| desktop_window | Independent Windows window, UI-thread file pickers, restricted navigation, minimize on close, activation and explicit shutdown |
 | desktop, platform_identity, window_runtime | Pre-window prompts, stable Windows identity and WebView2 detection |
 | frontend/api, session | Nested response validation, shared reads, late-response rejection |
 | frontend/features, ui | File lists, upload queue, dialogs, preferences and rendering |

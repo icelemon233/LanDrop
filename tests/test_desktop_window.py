@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from landrop.desktop_window import DesktopWindow, is_window_url
 from landrop.errors import AppError
@@ -59,19 +59,35 @@ class DesktopWindowTests(unittest.TestCase):
         self.assertFalse(self.host._closing())
         self.assertFalse(self.state.stopping.is_set())
 
-    def test_rejecting_close_keeps_active_transfers_running(self):
-        self.state.active_downloads = 1
-        self.window.create_confirmation_dialog.return_value = False
-        self.assertFalse(self.host._closing())
-        self.assertFalse(self.state.stopping.is_set())
-
-    def test_closing_cancels_owned_transfers_and_signals_service_cleanup(self):
-        self.state.active_downloads = 1
-        self.window.create_confirmation_dialog.return_value = True
+    def test_titlebar_close_minimizes_and_preserves_service_and_transfers(self):
+        self.state.scan_requested.clear()
         operation = Mock()
         self.host._downloads.add(operation)
-        self.assertTrue(self.host._closing())
+        with patch.object(self.state.uploads, 'active_count', return_value=1), \
+                patch.object(self.state.uploads, 'cancel_all') as cancel_uploads:
+            for active_downloads in (0, 1):
+                with self.subTest(active_downloads=active_downloads):
+                    self.state.active_downloads = active_downloads
+                    self.assertFalse(self.host._closing())
+                    self.assertFalse(self.state.stopping.is_set())
+                    self.assertFalse(self.state.scan_requested.is_set())
+            cancel_uploads.assert_not_called()
+        self.assertEqual(self.window.minimize.call_count, 2)
+        self.window.create_confirmation_dialog.assert_not_called()
+        self.window.destroy.assert_not_called()
+        operation.Cancel.assert_not_called()
+
+    def test_explicit_exit_cancels_owned_transfers_and_signals_service_cleanup(self):
+        self.state.active_downloads = 1
+        self.host.allow_close = True
+        operation = Mock()
+        self.host._downloads.add(operation)
+        with patch.object(self.state.uploads, 'cancel_all') as cancel_uploads:
+            self.assertTrue(self.host._closing())
+            cancel_uploads.assert_called_once()
         self.assertTrue(self.state.stopping.is_set())
+        self.assertTrue(self.state.scan_requested.is_set())
+        self.window.minimize.assert_not_called()
         operation.Cancel.assert_called_once()
 
     def test_maintenance_shutdown_closes_window_without_a_second_confirmation(self):

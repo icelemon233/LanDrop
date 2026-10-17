@@ -61,7 +61,7 @@ async function start(): Promise<void> {
   route(); schedulePoll();
 }
 function help(): void {
-  dialogs.open('使用帮助', `<div class="help-content"><h3>电脑发送到手机</h3><p>添加文件，或选择项目的安装包输出文件夹。手机扫描二维码，在浏览器中打开链接后下载。APK 下载后可在文件管理器中打开安装；AAB 不能直接安装。</p><h3>手机发送到电脑</h3><p>选择「发送文件到电脑」。看到「已保存到电脑」后，在电脑的「收到的文件」中查看。单个上传文件最大 8 GB，同名文件会自动另存。</p><h3>扫码打不开</h3><ol><li>手机和电脑连接同一个 Wi-Fi；电脑用网线连接同一台路由器也可以。</li><li>在系统浏览器中打开链接。微信中可通过菜单选择「在浏览器打开」。</li><li>检查 Windows 防火墙是否允许 LanDrop 通过你信任的专用网络。</li><li>检查 VPN、访客 Wi-Fi 和路由器的设备隔离。有多个网卡时可切换二维码下面的地址。</li></ol><h3>保存与退出</h3><p>关闭电脑端窗口或选择「退出程序」会停止连接。关闭手机网页不会退出电脑端。移除共享不会删除原文件；拖入的文件会复制到电脑的待发送目录。</p><p class="help-note">传输使用局域网 HTTP，适合信任的家庭或开发网络。二维码包含临时连接凭据，需要撤销访问时选择「重置连接」。</p></div><div class="dialog-actions"><button class="button primary" data-action="close-dialog">关闭帮助</button></div>`);
+  dialogs.open('使用帮助', `<div class="help-content"><h3>电脑发送到手机</h3><p>添加文件，或选择项目的安装包输出文件夹。手机扫描二维码，在浏览器中打开链接后下载。APK 下载后可在文件管理器中打开安装；AAB 不能直接安装。</p><h3>手机发送到电脑</h3><p>选择「发送文件到电脑」。看到「已保存到电脑」后，在电脑的「收到的文件」中查看。单个上传文件最大 8 GB，同名文件会自动另存。</p><h3>扫码打不开</h3><ol><li>手机和电脑连接同一个 Wi-Fi；电脑用网线连接同一台路由器也可以。</li><li>在系统浏览器中打开链接。微信中可通过菜单选择「在浏览器打开」。</li><li>检查 Windows 防火墙是否允许 LanDrop 通过你信任的专用网络。</li><li>检查 VPN、访客 Wi-Fi 和路由器的设备隔离。有多个网卡时可切换二维码下面的地址。</li></ol><h3>保存与退出</h3><p>点击电脑端标题栏关闭按钮会最小化到任务栏，连接和传输继续。选择「退出程序」才会停止连接。关闭手机网页不会退出电脑端。移除共享不会删除原文件；拖入的文件会复制到电脑的待发送目录。</p><p class="help-note">传输使用局域网 HTTP，适合信任的家庭或开发网络。二维码包含临时连接凭据，需要撤销访问时选择「重置连接」。</p></div><div class="dialog-actions"><button class="button primary" data-action="close-dialog">关闭帮助</button></div>`);
 }
 function settings(): void {
   const state = session.connection.snapshot;
