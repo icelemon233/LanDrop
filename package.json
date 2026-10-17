@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.25.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "check": "tsc --noEmit",
     "build": "node scripts/clean.mjs && tsc && node scripts/build.mjs",
@@ -11,5 +13,6 @@
   },
   "devDependencies": {
     "typescript": "5.9.3"
-  }
+  },
+  "author": "Cinna"
 }

@@ -1,10 +1,13 @@
 {
   "schemaVersion": 1,
   "projectName": "LanDrop",
-  "displayName": "隔空传",
+  "displayName": "LanDrop",
   "series": "Cinna",
   "developer": "Cinna",
-  "platforms": ["windows-x64", "android-browser"],
+  "platforms": [
+    "windows-x64",
+    "android-browser"
+  ],
   "brand": {
     "version": "2026-10-17.LanDrop.1",
     "source": "resources/brand/landrop-source.png",

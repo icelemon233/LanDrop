@@ -237,7 +237,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def verify_request(self):
         if self.state.stopping.is_set() and urlsplit(self.path).path != '/api/health':
-            raise AppError('隔空传正在退出，请稍后重新打开程序。', 503, 'service-stopping')
+            raise AppError('LanDrop正在退出，请稍后重新打开程序。', 503, 'service-stopping')
         peer = ipaddress.ip_address(self.client_address[0])
         if not peer.is_private and not peer.is_loopback:
             raise AppError('仅支持局域网连接。', 403)
@@ -250,7 +250,7 @@ class Handler(BaseHTTPRequestHandler):
             if origin and origin != f'http://{host}':
                 raise AppError('请求来源不正确。', 403)
             if self.headers.get('X-LanDrop') != '1':
-                raise AppError('请通过隔空传界面进行操作。', 403)
+                raise AppError('请通过LanDrop界面进行操作。', 403)
 
     def dispatch(self):
         self.cached_json: bytes | None = None
@@ -375,7 +375,7 @@ class Handler(BaseHTTPRequestHandler):
             if (role == 'admin' and not self.local) or not secrets.compare_digest(token, expected):
                 with self.server.failure_lock:
                     self.server.failed_pairs[peer].append(time.time())
-                raise AppError('电脑端登录已失效，请重新打开隔空传程序。' if role == 'admin' else '二维码已失效，请扫描电脑上新的二维码。', 401)
+                raise AppError('电脑端登录已失效，请重新打开LanDrop程序。' if role == 'admin' else '二维码已失效，请扫描电脑上新的二维码。', 401)
             session_token = self.state.create_session(role, self.headers.get('User-Agent', ''), peer)
             return self.json({'ok': True}, extra={'Set-Cookie': f'landrop={session_token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400'})
         if path == '/api/upload':

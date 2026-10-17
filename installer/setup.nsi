@@ -9,14 +9,17 @@ Unicode true
   !define AppKey "LanDrop.Cinna"
 !endif
 !ifndef ShortcutName
-  !define ShortcutName "隔空传"
+  !define ShortcutName "LanDrop"
 !endif
 !ifndef DataArgs
   !define DataArgs ""
 !endif
+!ifndef LegacyShortcutName
+  !define LegacyShortcutName "隔空传"
+!endif
 !define UninstallKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\${AppKey}"
-Name "隔空传 ${AppVersion}"
-BrandingText "隔空传"
+Name "LanDrop ${AppVersion}"
+BrandingText "LanDrop"
 OutFile "${OutputFile}"
 InstallDir "$LOCALAPPDATA\Programs\LanDrop"
 InstallDirRegKey HKCU "${UninstallKey}" "InstallLocation"
@@ -26,8 +29,8 @@ CRCCheck force
 ShowInstDetails show
 ShowUninstDetails show
 VIProductVersion "${AppVersion}.0"
-VIAddVersionKey /LANG=2052 "ProductName" "隔空传"
-VIAddVersionKey /LANG=2052 "FileDescription" "隔空传 Windows 安装程序"
+VIAddVersionKey /LANG=2052 "ProductName" "LanDrop"
+VIAddVersionKey /LANG=2052 "FileDescription" "LanDrop Windows 安装程序"
 VIAddVersionKey /LANG=2052 "FileVersion" "${AppVersion}"
 VIAddVersionKey /LANG=2052 "LegalCopyright" "${Developer}"
 VIAddVersionKey /LANG=2052 "CompanyName" "${Developer}"
@@ -39,11 +42,11 @@ VIAddVersionKey /LANG=2052 "CompanyName" "${Developer}"
 !define MUI_HEADERIMAGE_UNBITMAP "${ProjectRoot}\resources\installer-header.bmp"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "${ProjectRoot}\resources\installer-sidebar.bmp"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TITLE "安装隔空传 ${AppVersion}"
-!define MUI_WELCOMEPAGE_TEXT "安装后打开隔空传，手机与电脑连接同一局域网，扫码即可传文件。$\r$\n$\r$\n支持 Windows 10/11 x64，无需安装 Python。$\r$\n$\r$\n升级和卸载会保留收到的文件与共享设置。"
-!define MUI_FINISHPAGE_RUN "$INSTDIR\隔空传.exe"
+!define MUI_WELCOMEPAGE_TITLE "安装LanDrop ${AppVersion}"
+!define MUI_WELCOMEPAGE_TEXT "安装后打开LanDrop，手机与电脑连接同一局域网，扫码即可传文件。$\r$\n$\r$\n支持 Windows 10/11 x64，无需安装 Python。$\r$\n$\r$\n升级和卸载会保留收到的文件与共享设置。"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\LanDrop.exe"
 !define MUI_FINISHPAGE_RUN_PARAMETERS '${DataArgs}'
-!define MUI_FINISHPAGE_RUN_TEXT "打开隔空传"
+!define MUI_FINISHPAGE_RUN_TEXT "打开LanDrop"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
@@ -65,7 +68,7 @@ Function ${Prefix}PrepareApp
     Return
   ${EndIf}
   ${If} $CheckResult != 10
-    MessageBox MB_OK|MB_ICONSTOP "无法确认隔空传的运行状态。请先正常退出程序，再重试。" /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "无法确认LanDrop的运行状态。请先正常退出程序，再重试。" /SD IDOK
     SetErrorLevel 20
     Quit
   ${EndIf}
@@ -84,14 +87,14 @@ Function ${Prefix}PrepareApp
     ${EndIf}
     Goto close_app
   ask_close:
-    MessageBox MB_OKCANCEL|MB_ICONINFORMATION "隔空传正在运行。$\r$\n$\r$\n点击“确定”后，程序会正常退出，未完成的传输会中断。已保存的文件和共享设置会保留。$\r$\n$\r$\n点击“取消”停止本次操作。" /SD IDCANCEL IDOK close_app
+    MessageBox MB_OKCANCEL|MB_ICONINFORMATION "LanDrop正在运行。$\r$\n$\r$\n点击“确定”后，程序会正常退出，未完成的传输会中断。已保存的文件和共享设置会保留。$\r$\n$\r$\n点击“取消”停止本次操作。" /SD IDCANCEL IDOK close_app
     SetErrorLevel 10
     Quit
   close_app:
-    DetailPrint "正在等待隔空传正常退出…"
+    DetailPrint "正在等待LanDrop正常退出…"
     ExecWait '"$Helper" --headless --prepare-upgrade ${DataArgs}' $CheckResult
     ${If} $CheckResult != 0
-      MessageBox MB_OK|MB_ICONSTOP "隔空传尚未正常退出，程序文件未修改。请关闭系统文件选择窗口，退出应用后重试。" /SD IDOK
+      MessageBox MB_OK|MB_ICONSTOP "LanDrop尚未正常退出，程序文件未修改。请关闭系统文件选择窗口，退出应用后重试。" /SD IDOK
       SetErrorLevel 20
       Quit
     ${EndIf}
@@ -133,7 +136,7 @@ Function .onVerifyInstDir
   ${EndIf}
 FunctionEnd
 
-Section "隔空传应用（必选）" Application
+Section "LanDrop应用（必选）" Application
   SectionIn RO
   Call .onVerifyInstDir
   ReadRegStr $0 HKCU "${UninstallKey}" "InstallLocation"
@@ -152,17 +155,26 @@ Section "隔空传应用（必选）" Application
   location_checked:
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
-  File /oname=maintenance.exe "${Payload}\隔空传.exe"
+  File /oname=maintenance.exe "${Payload}\LanDrop.exe"
   StrCpy $Helper "$PLUGINSDIR\maintenance.exe"
   Call PrepareApp
   SetOutPath "$INSTDIR"
-  File "${Payload}\隔空传.exe"
+  File "${Payload}\LanDrop.exe"
   File "${Payload}\app.ico"
   File "${Payload}\使用说明.txt"
   File "${Payload}\THIRD_PARTY_NOTICES.txt"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+  ; Remove only the previous product's known entries after copying the new app.
+  ReadRegStr $1 HKCU "${UninstallKey}" "DisplayName"
+  ${If} $1 == "${LegacyShortcutName}"
+    Delete "$INSTDIR\隔空传.exe"
+    Delete "$DESKTOP\${LegacyShortcutName}.lnk"
+    Delete "$SMPROGRAMS\${LegacyShortcutName}\${LegacyShortcutName}.lnk"
+    Delete "$SMPROGRAMS\${LegacyShortcutName}\卸载.lnk"
+    RMDir "$SMPROGRAMS\${LegacyShortcutName}"
+  ${EndIf}
   CreateDirectory "$SMPROGRAMS\${ShortcutName}"
-  CreateShortcut "$SMPROGRAMS\${ShortcutName}\${ShortcutName}.lnk" "$INSTDIR\隔空传.exe" '${DataArgs}' "$INSTDIR\app.ico" 0
+  CreateShortcut "$SMPROGRAMS\${ShortcutName}\${ShortcutName}.lnk" "$INSTDIR\LanDrop.exe" '${DataArgs}' "$INSTDIR\app.ico" 0
   CreateShortcut "$SMPROGRAMS\${ShortcutName}\卸载.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\app.ico" 0
   WriteRegStr HKCU "${UninstallKey}" "DisplayName" "${ShortcutName}"
   WriteRegStr HKCU "${UninstallKey}" "DisplayVersion" "${AppVersion}"
@@ -177,7 +189,7 @@ Section "隔空传应用（必选）" Application
 SectionEnd
 
 Section "桌面快捷方式" Desktop
-  CreateShortcut "$DESKTOP\${ShortcutName}.lnk" "$INSTDIR\隔空传.exe" '${DataArgs}' "$INSTDIR\app.ico" 0
+  CreateShortcut "$DESKTOP\${ShortcutName}.lnk" "$INSTDIR\LanDrop.exe" '${DataArgs}' "$INSTDIR\app.ico" 0
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
@@ -200,12 +212,12 @@ Function un.onInit
 FunctionEnd
 
 Section "Uninstall"
-  StrCpy $Helper "$INSTDIR\隔空传.exe"
+  StrCpy $Helper "$INSTDIR\LanDrop.exe"
   IfFileExists "$Helper" 0 remove_files
     Call un.PrepareApp
   remove_files:
   SetOutPath "$TEMP"
-  Delete "$INSTDIR\隔空传.exe"
+  Delete "$INSTDIR\LanDrop.exe"
   Delete "$INSTDIR\app.ico"
   Delete "$INSTDIR\使用说明.txt"
   Delete "$INSTDIR\THIRD_PARTY_NOTICES.txt"

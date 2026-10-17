@@ -84,7 +84,7 @@ class SettingsStore:
                     current = hashlib.file_digest(original, 'sha256').hexdigest()
             if current != self.fingerprint:
                 self.problem = 'external-change'
-                self.message = '设置已被其他程序修改，请重新打开隔空传后再保存。'
+                self.message = '设置已被其他程序修改，请重新打开LanDrop后再保存。'
                 raise AppError(self.message, 409, 'settings-protected')
             with tempfile.NamedTemporaryFile(prefix='.settings-', suffix='.tmp', dir=self.path.parent, delete=False) as file:
                 temporary = Path(file.name)

@@ -23,12 +23,12 @@ class UpgradeRequired(AppError):
 
 class InstanceStopping(AppError):
     def __init__(self):
-        super().__init__('隔空传正在退出，请稍候。', 409, 'instance-stopping')
+        super().__init__('LanDrop正在退出，请稍候。', 409, 'instance-stopping')
 
 
 def verify_instance(health, info):
     if not isinstance(health, dict) or health.get('app') != 'landrop' or (health.get('pid') is not None and info.pid and health['pid'] != info.pid):
-        raise AppError('运行信息与当前端口不一致。请先在旧版界面退出隔空传，再运行新版。', 409, 'runtime-mismatch')
+        raise AppError('运行信息与当前端口不一致。请先在旧版界面退出LanDrop，再运行新版。', 409, 'runtime-mismatch')
 
 
 def local_client():
@@ -50,7 +50,7 @@ def post(client, base: str, route: str, body: dict):
 
 def open_interface(url: str):
     if not webbrowser.open(url):
-        raise AppError('未能打开默认浏览器，请设置默认浏览器后重新打开隔空传。', 503, 'browser-unavailable')
+        raise AppError('未能打开默认浏览器，请设置默认浏览器后重新打开LanDrop。', 503, 'browser-unavailable')
 
 
 def reopen(runtime_file: Path, args, browser=open_interface) -> bool:

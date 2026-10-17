@@ -76,7 +76,7 @@ def run(args, data_dir: Path, runtime_file: Path):
             else:
                 launch()
         if sys.stdout:
-            print(f'隔空传 {__version__} 已启动，端口 {state.port}。', flush=True)
+            print(f'LanDrop {__version__} 已启动，端口 {state.port}。', flush=True)
         if desktop:
             desktop.run()
         else:
@@ -103,7 +103,7 @@ def run(args, data_dir: Path, runtime_file: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='隔空传：在局域网扫码传文件。')
+    parser = argparse.ArgumentParser(description='LanDrop：在局域网扫码传文件。')
     parser.add_argument('paths', type=Path, nargs='*', help='拖到 exe 图标上的文件或文件夹')
     parser.add_argument('--port', type=int, default=41421)
     parser.add_argument('--state-dir', type=Path)
@@ -164,7 +164,7 @@ def main():
             if not stopping and guard.acquire():
                 break
             if time.monotonic() >= deadline:
-                raise AppError('隔空传尚未退出或启动尚未完成。请关闭系统文件选择窗口后重试。', 409, 'instance-busy')
+                raise AppError('LanDrop尚未退出或启动尚未完成。请关闭系统文件选择窗口后重试。', 409, 'instance-busy')
             time.sleep(.1)
         run(args, data_dir, runtime_file)
     finally:
@@ -178,7 +178,7 @@ if __name__ == '__main__':
         logging.exception('Application failed')
         if getattr(sys, 'frozen', False) and '--headless' not in sys.argv:
             from landrop.desktop import show_error
-            show_error('无法启动隔空传。\n' + str(error))
+            show_error('无法启动LanDrop。\n' + str(error))
         else:
             if sys.stderr:
                 print(str(error), file=sys.stderr)

@@ -25,7 +25,7 @@ class ProcessWaiter:
         if not handle:
             if ctypes.get_last_error() == 87:  # Process already exited.
                 return
-            raise AppError('无法确认旧程序是否退出，请先手动退出隔空传。', 409, 'process-unavailable')
+            raise AppError('无法确认旧程序是否退出，请先手动退出LanDrop。', 409, 'process-unavailable')
         self.handles.append(handle)
         image = self.image(handle)
         parent = self.parent(pid)

@@ -86,7 +86,7 @@ class RuntimeStore:
         except FileNotFoundError:
             return None
         except (OSError, ValueError, KeyError, TypeError) as error:
-            raise AppError('电脑端运行信息无法恢复，请先退出正在运行的隔空传后重试。', 409, 'runtime-unreadable') from error
+            raise AppError('电脑端运行信息无法恢复，请先退出正在运行的LanDrop后重试。', 409, 'runtime-unreadable') from error
 
     def write(self, port: int, secret: str):
         payload = {'schema': 2, 'port': port, 'pid': os.getpid(), 'appVersion': __version__, 'protectedSecret': protect_secret(secret)}

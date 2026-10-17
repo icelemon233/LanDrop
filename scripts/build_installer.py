@@ -38,11 +38,11 @@ with zipfile.ZipFile(archive) as source:
 compiler = tool_dir / 'nsis-3.13/makensis.exe'
 payload = root / 'build/installer-payload'
 payload.mkdir(parents=True, exist_ok=True)
-shutil.copy2(root / 'dist/隔空传.exe', payload / '隔空传.exe')
+shutil.copy2(root / 'dist/LanDrop.exe', payload / 'LanDrop.exe')
 shutil.copy2(root / 'resources/app.ico', payload / 'app.ico')
 shutil.copy2(root / 'docs/使用说明.txt', payload / '使用说明.txt')
 shutil.copy2(root / 'THIRD_PARTY_NOTICES.txt', payload / 'THIRD_PARTY_NOTICES.txt')
-output = (args.output or root / f'dist/隔空传-v{version}-安装程序.exe').resolve()
+output = (args.output or root / f'dist/LanDrop-v{version}-windows-x64-setup.exe').resolve()
 output.parent.mkdir(parents=True, exist_ok=True)
 size = sum(path.stat().st_size for path in payload.iterdir())
 command = [str(compiler), '/V2', '/INPUTCHARSET', 'UTF8', f'/DProjectRoot={root}', f'/DAppVersion={version}', f'/DDeveloper={project["developer"]}', f'/DPayload={payload}', f'/DOutputFile={output}', f'/DInstalledSizeKB={(size + 1023) // 1024}']
@@ -53,7 +53,7 @@ if args.qa_state:
     if not state.is_relative_to(root.parent.resolve()):
         raise SystemExit('QA data must stay inside the task work directory.')
     data_args = '--state-dir $\\"' + str(state).replace('$', '$$') + '$\\"'
-    command.extend([f'/DAppKey=LanDrop.Cinna.QA.{args.qa_id}', f'/DShortcutName=隔空传 QA {args.qa_id}', f'/DDataArgs={data_args}'])
+    command.extend([f'/DAppKey=LanDrop.Cinna.QA.{args.qa_id}', f'/DShortcutName=LanDrop QA {args.qa_id}', f'/DLegacyShortcutName=隔空传 QA {args.qa_id}', f'/DDataArgs={data_args}'])
 command.append(str(root / 'installer/setup.nsi'))
 subprocess.run(command, check=True, cwd=root)
 print(output)

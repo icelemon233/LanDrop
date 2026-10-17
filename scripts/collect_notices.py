@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 
 root = Path(__file__).resolve().parents[1]
-parts = ['隔空传 — Third-party notices\n\nThis distribution contains Python, Tcl/Tk, qrcode and colorama, and is packaged with the PyInstaller bootloader. The installer uses unmodified NSIS 3.13 including LZMA. NSIS source: https://nsis.sourceforge.io/Download . The following notices are reproduced from the installed distributions.\n']
+parts = ['LanDrop — Third-party notices\n\nThis distribution contains Python, Tcl/Tk, qrcode and colorama, and is packaged with the PyInstaller bootloader. The installer uses unmodified NSIS 3.13 including LZMA. NSIS source: https://nsis.sourceforge.io/Download . The following notices are reproduced from the installed distributions.\n']
 for name in ['qrcode', 'colorama', 'pyinstaller']:
     installed = distribution(name)
     for item in installed.files or []:

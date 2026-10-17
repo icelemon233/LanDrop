@@ -1,8 +1,8 @@
-# 隔空传工程约定
+# LanDrop工程约定
 
 这是 Windows 本地软件，浏览器是界面；局域网 HTTP 服务在电脑上运行，不部署公网服务。
 
-本工程属于 Cinna 系列，工程名 LanDrop、应用名“隔空传”、开发者 Cinna，统一记录在 project.json。应用界面使用业务名称；系列归属记录在工程元数据和文档中。
+本工程属于 Cinna 系列，工程名与应用名均为 LanDrop、开发者 Cinna，统一记录在 project.json。应用界面使用业务名称；系列归属记录在工程元数据和文档中。
 
 - 应用、安装器、卸载器、快捷方式、网页页签、系统窗口及 README 的品牌图标统一从 project.json 指定的原图导出，禁止逐处手工替换成不同版本。
 - 更新品牌素材后运行 scripts/export_brand.py，再构建和检查真实 exe、安装器、快捷方式与浏览器资源；resources/brand/manifest.json 记录导出哈希。

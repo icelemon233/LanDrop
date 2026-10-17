@@ -18,13 +18,13 @@ version = json.loads((root / 'landrop/version.json').read_text('utf-8'))['versio
 project = json.loads((root / 'project.json').read_text('utf-8'))
 source = runtime_manifest(root)
 parts = tuple(int(part) for part in version.split('.')) + (0,)
-metadata = f'''VSVersionInfo(ffi=FixedFileInfo(filevers={parts!r}, prodvers={parts!r}, mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0,0)), kids=[StringFileInfo([StringTable('080404B0', [StringStruct('CompanyName',{project['developer']!r}), StringStruct('FileDescription','隔空传 · 局域网文件传输'), StringStruct('FileVersion','{version}'), StringStruct('InternalName',{project['projectName']!r}), StringStruct('LegalCopyright',{project['developer']!r}), StringStruct('OriginalFilename','隔空传.exe'), StringStruct('ProductName','隔空传'), StringStruct('ProductVersion','{version}')])]), VarFileInfo([VarStruct('Translation',[2052,1200])])])'''
+metadata = f'''VSVersionInfo(ffi=FixedFileInfo(filevers={parts!r}, prodvers={parts!r}, mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0,0)), kids=[StringFileInfo([StringTable('080404B0', [StringStruct('CompanyName',{project['developer']!r}), StringStruct('FileDescription','LanDrop · 局域网文件传输'), StringStruct('FileVersion','{version}'), StringStruct('InternalName',{project['projectName']!r}), StringStruct('LegalCopyright',{project['developer']!r}), StringStruct('OriginalFilename','LanDrop.exe'), StringStruct('ProductName','LanDrop'), StringStruct('ProductVersion','{version}')])]), VarFileInfo([VarStruct('Translation',[2052,1200])])])'''
 metadata_path = root / 'build/version.txt'
 metadata_path.parent.mkdir(parents=True, exist_ok=True)
 metadata_path.write_text(metadata, 'utf-8')
 subprocess.run([
     sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--windowed',
-    '--' + args.mode, '--name', '隔空传', '--noupx',
+    '--' + args.mode, '--name', 'LanDrop', '--noupx',
     '--distpath', str(args.output.resolve()), '--workpath', str(root / 'build' / args.mode),
     '--specpath', str(root / 'build'),
     '--icon', str(root / 'resources/app.ico'),

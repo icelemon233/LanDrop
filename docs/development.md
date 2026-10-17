@@ -38,7 +38,7 @@ Automatic port selection skips browser-blocked ports from the [Fetch standard](h
 
 ```powershell
 python scripts/package.py
-python scripts/smoke_exe.py dist/隔空传.exe
+python scripts/smoke_exe.py dist/LanDrop.exe
 python scripts/build_installer.py --nsis-archive D:/Tools/nsis-3.13.zip
 ```
 

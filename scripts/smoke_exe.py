@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory(prefix='landrop-smoke-') as temporary:
         with admin.open(base + '/api/qr') as response:
             assert b'<svg' in response.read()
         with admin.open(base + '/') as response:
-            assert '隔空传' in response.read().decode()
+            assert 'LanDrop' in response.read().decode()
         with admin.open(base + '/assets/app.js') as response:
             assert response.status == 200
         pair = urlsplit(state['pairUrl'])

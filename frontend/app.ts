@@ -26,7 +26,7 @@ const report = (error: unknown): void => toast(error instanceof Error ? error.me
 function render(): void {
   view.render(session.connection);
   if (busy.has('native-picker')) document.querySelectorAll<HTMLButtonElement>('[data-action="add-files"],[data-action="pick-folder"]').forEach(button => { button.disabled = true; });
-  document.title = `隔空传${session.connection.snapshot?.role === 'admin' ? ' · 电脑端' : session.connection.snapshot ? ' · 手机端' : ''}`;
+  document.title = `LanDrop${session.connection.snapshot?.role === 'admin' ? ' · 电脑端' : session.connection.snapshot ? ' · 手机端' : ''}`;
 }
 async function run(key: string, operation: () => Promise<void>): Promise<void> {
   if (busy.has(key)) { toast('这项操作正在处理，请稍候。'); return; }
@@ -59,7 +59,7 @@ async function start(): Promise<void> {
   route(); schedulePoll();
 }
 function help(): void {
-  dialogs.open('使用帮助', `<div class="help-content"><h3>电脑发送到手机</h3><p>添加文件，或选择项目的安装包输出文件夹。手机扫描二维码，在浏览器中打开链接后下载。APK 下载后可在文件管理器中打开安装；AAB 不能直接安装。</p><h3>手机发送到电脑</h3><p>选择「发送文件到电脑」。看到「已保存到电脑」后，在电脑的「收到的文件」中查看。单个上传文件最大 8 GB，同名文件会自动另存。</p><h3>扫码打不开</h3><ol><li>手机和电脑连接同一个 Wi-Fi；电脑用网线连接同一台路由器也可以。</li><li>在系统浏览器中打开链接。微信中可通过菜单选择「在浏览器打开」。</li><li>检查 Windows 防火墙是否允许隔空传通过你信任的专用网络。</li><li>检查 VPN、访客 Wi-Fi 和路由器的设备隔离。有多个网卡时可切换二维码下面的地址。</li></ol><h3>保存与退出</h3><p>关闭网页后，电脑程序仍然运行。选择「退出程序」停止连接。移除共享不会删除原文件；拖入网页的文件会复制到电脑的待发送目录。</p><p class="help-note">传输使用局域网 HTTP，适合信任的家庭或开发网络。二维码包含临时连接凭据，需要撤销访问时选择「重置连接」。下载进度和续传由浏览器管理。</p></div><div class="dialog-actions"><button class="button primary" data-action="close-dialog">关闭帮助</button></div>`);
+  dialogs.open('使用帮助', `<div class="help-content"><h3>电脑发送到手机</h3><p>添加文件，或选择项目的安装包输出文件夹。手机扫描二维码，在浏览器中打开链接后下载。APK 下载后可在文件管理器中打开安装；AAB 不能直接安装。</p><h3>手机发送到电脑</h3><p>选择「发送文件到电脑」。看到「已保存到电脑」后，在电脑的「收到的文件」中查看。单个上传文件最大 8 GB，同名文件会自动另存。</p><h3>扫码打不开</h3><ol><li>手机和电脑连接同一个 Wi-Fi；电脑用网线连接同一台路由器也可以。</li><li>在系统浏览器中打开链接。微信中可通过菜单选择「在浏览器打开」。</li><li>检查 Windows 防火墙是否允许LanDrop通过你信任的专用网络。</li><li>检查 VPN、访客 Wi-Fi 和路由器的设备隔离。有多个网卡时可切换二维码下面的地址。</li></ol><h3>保存与退出</h3><p>关闭网页后，电脑程序仍然运行。选择「退出程序」停止连接。移除共享不会删除原文件；拖入网页的文件会复制到电脑的待发送目录。</p><p class="help-note">传输使用局域网 HTTP，适合信任的家庭或开发网络。二维码包含临时连接凭据，需要撤销访问时选择「重置连接」。下载进度和续传由浏览器管理。</p></div><div class="dialog-actions"><button class="button primary" data-action="close-dialog">关闭帮助</button></div>`);
 }
 function settings(): void {
   const state = session.connection.snapshot;
@@ -132,7 +132,7 @@ async function action(button: HTMLElement): Promise<void> {
   if (name === 'reset-pairs') { dialogs.confirm('重置手机连接', '已连接的手机会断开，旧二维码和链接会失效。手机需要重新扫码。', '重置连接', async () => { await request('/api/admin/reset-pairs', {}); await session.invalidate(); }); return; }
   if (name === 'revoke') { dialogs.confirm('断开设备', '该设备需要重新扫码才能继续上传和下载。', '断开设备', async () => { await request('/api/admin/revoke-device', { id: identifier }); await session.invalidate(); }); return; }
   if (name === 'recover-settings') { dialogs.confirm('备份并恢复共享设置', '程序会保留原始设置的备份，然后新建空的共享列表。收到的文件和电脑上的原文件会保留。', '备份并恢复', async () => { await request('/api/admin/recover-settings', {}); await session.invalidate(); toast('原设置已备份，可以重新添加共享文件。'); }); return; }
-  if (name === 'shutdown') { dialogs.confirm('退出隔空传', `${state.activeTransfers ? `当前有 ${state.activeTransfers} 个传输任务。` : ''}退出会中断未完成的传输，已保存的文件和共享目录会保留。`, '退出程序', async () => { await request('/api/admin/shutdown', {}); uploads.dispose(); clearTimeout(pollTimer); paused = true; session.stop(); }); }
+  if (name === 'shutdown') { dialogs.confirm('退出LanDrop', `${state.activeTransfers ? `当前有 ${state.activeTransfers} 个传输任务。` : ''}退出会中断未完成的传输，已保存的文件和共享目录会保留。`, '退出程序', async () => { await request('/api/admin/shutdown', {}); uploads.dispose(); clearTimeout(pollTimer); paused = true; session.stop(); }); }
 }
 
 document.addEventListener('click', event => {

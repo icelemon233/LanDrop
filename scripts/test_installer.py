@@ -49,7 +49,7 @@ def registry():
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, access=winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as handle:
         return {name: winreg.QueryValueEx(handle, name)[0] for name in ('DisplayVersion', 'InstallLocation', 'DisplayName', 'Publisher', 'DisplayIcon')}
 
-exe = args.install_dir / '隔空传.exe'
+exe = args.install_dir / 'LanDrop.exe'
 setup = args.setup.resolve(strict=True)
 try:
     registry()

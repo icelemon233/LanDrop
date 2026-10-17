@@ -20,7 +20,7 @@ def branded_root():
         identity('Cinna.LanDrop')
     root = tk.Tk()
     root.withdraw()
-    root.title('隔空传')
+    root.title('LanDrop')
     icon = Path(__file__).parent / 'web/assets/cinna-icon.png'
     if icon.is_file():
         root.brand_icon = tk.PhotoImage(file=str(icon))
@@ -61,10 +61,10 @@ class DesktopBridge:
     def ensure_can_shutdown(self):
         with self.lock:
             if self.dialog_busy:
-                raise AppError('请先关闭系统文件选择窗口，再退出隔空传。', 409, 'desktop-busy')
+                raise AppError('请先关闭系统文件选择窗口，再退出LanDrop。', 409, 'desktop-busy')
 
     def report_error(self, message: str):
-        messagebox.showerror('隔空传', message, parent=self.root)
+        messagebox.showerror('LanDrop', message, parent=self.root)
 
     def pump(self):
         if self.closed:
@@ -118,12 +118,12 @@ class DesktopBridge:
 
 def show_error(message: str):
     root = branded_root()
-    messagebox.showerror('隔空传', message, parent=root)
+    messagebox.showerror('LanDrop', message, parent=root)
     root.destroy()
 
 
 def confirm_upgrade(previous: str, current: str) -> bool:
     root = branded_root()
-    result = messagebox.askyesno('更新隔空传', f'版本 {previous} 正在运行。是否退出旧版并启动 {current}？\n\n已有文件和共享目录会保留；正在进行的传输会中断。', parent=root)
+    result = messagebox.askyesno('更新LanDrop', f'版本 {previous} 正在运行。是否退出旧版并启动 {current}？\n\n已有文件和共享目录会保留；正在进行的传输会中断。', parent=root)
     root.destroy()
     return result
