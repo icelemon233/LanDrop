@@ -58,18 +58,22 @@ for mode in ('native','headless'):
     try:
         old_info=wait_until(lambda:RuntimeStore(runtime).read(),[old])
         settings=(data/'settings.json').read_bytes()
-        new_command=[str(args.new.resolve()),'--state-dir',str(data),'--port',str(old_info.port)]
+        new_command=[str(args.new.resolve()),'--state-dir',str(data),'--port',str(old_info.port),'--test-data']
         if not args.interactive or mode!='native':
             new_command.append('--approve-upgrade')
         new=subprocess.Popen(new_command,env=environment,creationflags=flags)
         print(json.dumps({'phase':'upgrade-started','mode':mode,'interactive':args.interactive and mode=='native'}),flush=True)
         def ready():
             info=RuntimeStore(runtime).read()
-            return info if info and info.version==__version__ and info.pid!=old_info.pid and record.exists() else None
+            return info if info and info.version==__version__ and info.pid!=old_info.pid and (data/'desktop-observation.json').exists() else None
         new_info=wait_until(ready,[new],timeout=55 if args.interactive else 30)
         old.wait(timeout=15)
+        assert not record.exists(), 'Upgrade opened an external browser'
+        observation=json.loads((data/'desktop-observation.json').read_text('utf-8'))
+        assert observation['role']=='admin' and observation['phase']=='connected'
         browser=local_client()
-        with browser.open(record.read_text('utf-8'),timeout=5) as response:
+        launch_url=post(browser,f'http://127.0.0.1:{new_info.port}','/api/desktop-launch',{'token':new_info.secret})['url']
+        with browser.open(launch_url,timeout=5) as response:
             assert response.url.endswith('/desktop')
         with browser.open(f'http://127.0.0.1:{new_info.port}/api/state') as response:
             state=json.load(response)
@@ -77,7 +81,7 @@ for mode in ('native','headless'):
         assert any(item['name']==shared.name for item in state['files'])
         assert (data/'settings.json').read_bytes()==settings
         assert (received/'keep.txt').read_bytes()==b'preserve received data'
-        results.append(mode+' old copy -> new native copy; browser launch, shares and received data preserved')
+        results.append(mode+' old copy -> independent Windows window; authenticated embedded UI, no external browser, shares and received data preserved')
     finally:
         if RuntimeStore(runtime).read():
             stop_previous(runtime)

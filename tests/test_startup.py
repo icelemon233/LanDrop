@@ -26,12 +26,21 @@ class StartupTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.state = State(Path(self.temp.name))
-        self.server = Server(('127.0.0.1', 0), self.state)
+        class WindowFixture:
+            def __init__(self):
+                self.ready = threading.Event()
+                self.ready.set()
+                self.calls = []
+            def call(self, action):
+                self.calls.append(action)
+                return True
+        self.desktop = WindowFixture()
+        self.server = Server(('127.0.0.1', 0), self.state, self.desktop)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.runtime = self.state.data_dir / 'runtime.json'
         self.runtime.write_text(json.dumps({'port': self.state.port, 'admin': self.state.admin_token}), 'utf-8')
-        self.args = argparse.Namespace(share=[], no_browser=False)
+        self.args = argparse.Namespace(share=[], no_browser=False, headless=False)
 
     def tearDown(self):
         self.server.shutdown()
@@ -39,10 +48,15 @@ class StartupTests(unittest.TestCase):
         self.thread.join()
         self.temp.cleanup()
 
-    def test_reopening_exe_uses_fresh_authenticated_desktop_entry(self):
-        with patch('main.open_interface') as opened:
+    def test_reopening_exe_activates_existing_window_without_a_browser(self):
+        with patch('webbrowser.open') as opened:
             self.assertTrue(main.reopen(self.runtime, self.args))
-        url = opened.call_args.args[0]
+            opened.assert_not_called()
+        self.assertEqual(self.desktop.calls, ['activate'])
+
+    def test_authenticated_entry_still_establishes_a_local_admin_session(self):
+        launched = launcher.post(launcher.local_client(), f'http://127.0.0.1:{self.state.port}', '/api/desktop-launch', {'token': self.state.admin_token})
+        url = launched['url']
         self.assertEqual(urlsplit(url).fragment, '')
         self.assertTrue(urlsplit(url).path.startswith('/desktop/'))
         browser = build_opener(ProxyHandler({}), HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -54,22 +68,37 @@ class StartupTests(unittest.TestCase):
 
     def test_stale_runtime_cannot_open_expired_login_page(self):
         self.runtime.write_text(json.dumps({'port': self.state.port, 'admin': 'stale'}), 'utf-8')
-        with patch('main.open_interface') as opened:
+        with patch('webbrowser.open') as opened:
             with self.assertRaises(AppError):
                 main.reopen(self.runtime, self.args)
             opened.assert_not_called()
 
     def test_local_reopen_works_with_proxy_environment(self):
         import os
-        with patch.dict(os.environ, {'HTTP_PROXY': 'http://127.0.0.1:1', 'http_proxy': 'http://127.0.0.1:1', 'NO_PROXY': '', 'no_proxy': ''}), patch('main.open_interface') as opened:
+        with patch.dict(os.environ, {'HTTP_PROXY': 'http://127.0.0.1:1', 'http_proxy': 'http://127.0.0.1:1', 'NO_PROXY': '', 'no_proxy': ''}), patch('webbrowser.open') as opened:
             self.assertTrue(main.reopen(self.runtime, self.args))
-            opened.assert_called_once()
+            opened.assert_not_called()
+            self.assertEqual(self.desktop.calls, ['activate'])
 
     def test_every_exe_launch_gets_an_independent_ticket(self):
-        with patch('main.open_interface') as opened:
-            self.assertTrue(main.reopen(self.runtime, self.args))
-            self.assertTrue(main.reopen(self.runtime, self.args))
-        self.assertNotEqual(opened.call_args_list[0].args[0], opened.call_args_list[1].args[0])
+        client = launcher.local_client()
+        base = f'http://127.0.0.1:{self.state.port}'
+        first = launcher.post(client, base, '/api/desktop-launch', {'token': self.state.admin_token})
+        second = launcher.post(client, base, '/api/desktop-launch', {'token': self.state.admin_token})
+        self.assertNotEqual(first['url'], second['url'])
+
+    def test_headless_reopen_does_not_activate_a_window(self):
+        self.args.headless = True
+        self.assertTrue(main.reopen(self.runtime, self.args))
+        self.assertEqual(self.desktop.calls, [])
+
+    def test_regular_reopen_does_not_fall_back_to_a_browser_for_headless_service(self):
+        self.server.desktop = None
+        with patch('webbrowser.open') as opened:
+            with self.assertRaises(AppError) as failure:
+                main.reopen(self.runtime, self.args)
+            self.assertEqual(failure.exception.code, 'desktop-unavailable')
+            opened.assert_not_called()
 
     def test_wrong_instance_pid_stops_before_sending_credential(self):
         self.runtime.write_text(json.dumps({'port':self.state.port,'admin':self.state.admin_token,'pid':os.getpid()+100000}), 'utf-8')

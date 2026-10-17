@@ -17,12 +17,8 @@ from landrop.state import State
 from landrop.ports import BAD_PORTS
 
 
-def open_interface(url: str):
-    launcher.open_interface(url)
-
-
 def reopen(runtime_file: Path, args) -> bool:
-    return launcher.reopen(runtime_file, args, browser=open_interface)
+    return launcher.reopen(runtime_file, args)
 
 
 def bind_server(port: int, state: State, desktop=None):
@@ -50,7 +46,7 @@ def run(args, data_dir: Path, runtime_file: Path):
     desktop = None
     if not args.headless:
         from landrop.desktop import DesktopBridge
-        desktop = DesktopBridge(state.inbox)
+        desktop = DesktopBridge(state)
     runtime = RuntimeStore(runtime_file)
     server = None
     scanner = None
@@ -61,20 +57,9 @@ def run(args, data_dir: Path, runtime_file: Path):
         scanner.start()
         serving = threading.Thread(target=server.serve_forever, daemon=True)
         serving.start()
+        if desktop:
+            desktop.prepare()
         runtime.write(state.port, state.admin_token)
-        if not args.no_browser:
-            def launch():
-                try:
-                    open_interface(state.admin_url)
-                except AppError as error:
-                    if desktop:
-                        desktop.report_error(str(error))
-                    else:
-                        raise
-            if desktop:
-                desktop.root.after(80, launch)
-            else:
-                launch()
         if sys.stdout:
             print(f'LanDrop {__version__} 已启动，端口 {state.port}。', flush=True)
         if desktop:
@@ -107,7 +92,7 @@ def main():
     parser.add_argument('paths', type=Path, nargs='*', help='拖到 exe 图标上的文件或文件夹')
     parser.add_argument('--port', type=int, default=41421)
     parser.add_argument('--state-dir', type=Path)
-    parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--no-browser', action='store_true', help='兼容旧参数；桌面版始终使用独立窗口')
     parser.add_argument('--headless', action='store_true')
     parser.add_argument('--share', type=Path, action='append', default=[])
     parser.add_argument('--approve-upgrade', action='store_true', help='允许旧版本正常退出后启动新版')

@@ -4,17 +4,13 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Transfer files between a Windows PC and an Android phone over your local network. Scan the PC's QR code to connect through your phone's browser.
-
-![LanDrop desktop with connection details hidden](docs/assets/desktop-current.jpg)
-
-The screenshot uses a synthetic test instance with connection details hidden.
+A Windows desktop app for transferring files to and from an Android phone over your local network. The PC has its own application window; scan its QR code to connect through your phone's browser.
 
 [Download for Windows](https://github.com/icelemon233/LanDrop/releases/latest)
 
 ## Connect
 
-Requires Windows 10/11 x64. Python and a phone app are not required.
+Requires Windows 10/11 x64. Python and a phone app are not required. The installer sets up WebView2 if it is missing; that step needs an internet connection.
 
 1. Run the installer and open **LanDrop** from the desktop or Start menu.
 2. Connect the PC and phone to the same local network.
@@ -25,13 +21,13 @@ Requires Windows 10/11 x64. Python and a phone app are not required.
 
 - Share files or watch a build folder for APK, AAB, APKS and XAPK files, including subfolders. AAB files cannot be installed directly.
 - Upload multiple files with progress and cancellation, up to 8 GB per file. Duplicate names get a new filename.
-- Select original files to share them, or drop files into the webpage to copy them into the outgoing folder. Removing a share keeps the original file.
+- Select original files to share them, or drop files into the window to copy them into the outgoing folder. Removing a share keeps the original file.
 
 ## Data and updates
 
-Updates and uninstallation preserve received files and shared-folder settings. Transfer history keeps the latest 100 entries for the current run; theme preferences stay in the browser.
+Updates and uninstallation preserve received files and shared-folder settings. Transfer history keeps the latest 100 entries for the current run; theme preferences stay on the current device.
 
-Closing the webpage leaves the service running. Choose **退出程序** to stop it. Before upgrading, close file pickers and let the installer request a normal exit; unfinished transfers will stop.
+Minimize the window to keep transfers running. Closing the PC window or choosing **退出程序** exits the app and stops unfinished transfers. Opening LanDrop again activates the existing window. Before upgrading, close file pickers and let the installer request a normal exit.
 
 ## Connection
 

@@ -31,7 +31,13 @@ subprocess.run([
     '--version-file', str(metadata_path),
     '--add-data', str(root / 'landrop/web') + ';landrop/web',
     '--add-data', str(root / 'landrop/version.json') + ';landrop',
+    '--add-data', str(root / 'resources/app.ico') + ';resources',
     '--hidden-import', 'qrcode.image.svg',
+    '--hidden-import', 'webview.platforms.winforms',
+    '--hidden-import', 'webview.platforms.edgechromium',
+    '--collect-all', 'webview',
+    '--collect-all', 'pythonnet',
+    '--collect-all', 'clr_loader',
     '--exclude-module', 'unittest',
     str(root / 'main.py'),
 ], check=True, cwd=root)

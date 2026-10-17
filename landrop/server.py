@@ -294,7 +294,7 @@ class Handler(BaseHTTPRequestHandler):
         route = urlsplit(self.path)
         path = route.path
         if path == '/api/health':
-            return self.json({'app': 'landrop', 'version': __version__, 'phase': 'stopping' if self.state.stopping.is_set() else 'running', **({'pid': os.getpid()} if self.local else {})})
+            return self.json({'app': 'landrop', 'version': __version__, 'phase': 'stopping' if self.state.stopping.is_set() else 'running', **({'pid': os.getpid(), 'desktopMode': 'window' if self.server.desktop else 'headless', 'windowReady': bool(self.server.desktop and self.server.desktop.ready.is_set())} if self.local else {})})
         if path.startswith('/desktop/'):
             if not self.local:
                 raise AppError('电脑端入口只能在运行程序的这台电脑上打开。', 403)
@@ -358,7 +358,14 @@ class Handler(BaseHTTPRequestHandler):
             token = body.get('token')
             if not self.local or not isinstance(token, str) or not secrets.compare_digest(token, self.state.admin_token):
                 raise AppError('电脑端启动凭据已失效，请退出旧程序后重新打开。', 401)
-            return self.json({'url': self.state.admin_url})
+            activate = body.get('activate', False)
+            if type(activate) is not bool:
+                raise AppError('桌面启动参数不正确。')
+            if activate and self.server.desktop is None:
+                raise AppError('后台服务正在运行。请先正常退出后台服务，再打开 LanDrop 桌面窗口。', 409, 'desktop-unavailable')
+            if activate:
+                self.server.desktop.call('activate')
+            return self.json({'url': self.state.admin_url, 'activated': activate})
         if path == '/api/session':
             body = self.read_json()
             role, token = body.get('role'), body.get('token')

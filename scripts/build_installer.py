@@ -7,6 +7,8 @@ import json
 import shutil
 import subprocess
 import zipfile
+import os
+from urllib.request import urlretrieve
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
@@ -15,6 +17,7 @@ parser.add_argument('--nsis-archive', type=Path, required=True, help='Official n
 parser.add_argument('--output', type=Path)
 parser.add_argument('--qa-state', type=Path, help='Isolated installer test only')
 parser.add_argument('--qa-id', default='')
+parser.add_argument('--webview-bootstrapper', type=Path)
 args = parser.parse_args()
 version = json.loads((root / 'landrop/version.json').read_text('utf-8'))['version']
 project = json.loads((root / 'project.json').read_text('utf-8'))
@@ -36,6 +39,16 @@ with zipfile.ZipFile(archive) as source:
         elif not target.is_file() or hashlib.sha256(target.read_bytes()).digest()!=hashlib.sha256(source.read(member)).digest():
             source.extract(member,tool_dir)
 compiler = tool_dir / 'nsis-3.13/makensis.exe'
+prerequisite = json.loads((root / 'resources/webview2-bootstrapper.json').read_text('utf-8'))
+bootstrapper = (args.webview_bootstrapper or tool_dir / prerequisite['name']).resolve()
+if not bootstrapper.exists():
+    bootstrapper.parent.mkdir(parents=True, exist_ok=True)
+    urlretrieve(prerequisite['url'], bootstrapper)
+if bootstrapper.stat().st_size != prerequisite['bytes'] or hashlib.sha256(bootstrapper.read_bytes()).hexdigest() != prerequisite['sha256']:
+    raise SystemExit('WebView2 bootstrapper changed; verify its Microsoft source/signature before updating the pinned manifest.')
+signature = subprocess.run(['powershell', '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; $env:PSModulePath=Join-Path $PSHOME 'Modules'; $s=Get-AuthenticodeSignature -LiteralPath $env:LANDROP_BOOTSTRAPPER; if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation'){exit 1}"], env={**os.environ, 'LANDROP_BOOTSTRAPPER': str(bootstrapper)}, capture_output=True)
+if signature.returncode:
+    raise SystemExit('WebView2 bootstrapper Microsoft signature verification failed.')
 payload = root / 'build/installer-payload'
 payload.mkdir(parents=True, exist_ok=True)
 shutil.copy2(root / 'dist/LanDrop.exe', payload / 'LanDrop.exe')
@@ -46,6 +59,7 @@ output = (args.output or root / f'dist/LanDrop-v{version}-windows-x64-setup.exe'
 output.parent.mkdir(parents=True, exist_ok=True)
 size = sum(path.stat().st_size for path in payload.iterdir())
 command = [str(compiler), '/V2', '/INPUTCHARSET', 'UTF8', f'/DProjectRoot={root}', f'/DAppVersion={version}', f'/DDeveloper={project["developer"]}', f'/DPayload={payload}', f'/DOutputFile={output}', f'/DInstalledSizeKB={(size + 1023) // 1024}']
+command.append(f'/DWebViewBootstrapper={bootstrapper}')
 if args.qa_state:
     if not args.qa_id or not args.qa_id.isalnum():
         raise SystemExit('QA build needs an alphanumeric --qa-id.')

@@ -3,7 +3,6 @@ from __future__ import annotations
 import http.cookiejar
 import json
 import time
-import webbrowser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -48,12 +47,7 @@ def post(client, base: str, route: str, body: dict):
         raise AppError(problem.get('error', '电脑端请求失败，请重试。'), error.code, problem.get('code', 'launch-rejected')) from error
 
 
-def open_interface(url: str):
-    if not webbrowser.open(url):
-        raise AppError('未能打开默认浏览器，请设置默认浏览器后重新打开LanDrop。', 503, 'browser-unavailable')
-
-
-def reopen(runtime_file: Path, args, browser=open_interface) -> bool:
+def reopen(runtime_file: Path, args) -> bool:
     info = RuntimeStore(runtime_file).read()
     if info is None:
         return False
@@ -69,7 +63,9 @@ def reopen(runtime_file: Path, args, browser=open_interface) -> bool:
         raise InstanceStopping()
     if health.get('version') != __version__:
         raise UpgradeRequired(str(health.get('version', '未知版本')))
-    launch_url = post(client, base, '/api/desktop-launch', {'token': info.secret}).get('url')
+    activate = not getattr(args, 'headless', False)
+    launched = post(client, base, '/api/desktop-launch', {'token': info.secret, 'activate': activate})
+    launch_url = launched.get('url')
     if not isinstance(launch_url, str):
         raise AppError('电脑端启动响应不完整，请重新打开程序。', 502, 'launch-invalid')
     target = urlsplit(launch_url)
@@ -85,8 +81,8 @@ def reopen(runtime_file: Path, args, browser=open_interface) -> bool:
                 files.append(str(path.resolve()))
         if files:
             post(client, base, '/api/admin/add-files', {'paths': files})
-    if not args.no_browser:
-        browser(launch_url)
+    if activate and launched.get('activated') is not True:
+        raise AppError('桌面窗口未能恢复，请先正常退出 LanDrop，再重新打开。', 503, 'desktop-unavailable')
     return True
 
 

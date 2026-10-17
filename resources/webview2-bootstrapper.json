@@ -1,0 +1,9 @@
+{
+  "name": "MicrosoftEdgeWebview2Setup.exe",
+  "url": "https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+  "sha256": "c90f9cdcec5e1997e581127dd1cb4526c239551908e9adbfe63ad14671bdcc94",
+  "bytes": 1867984,
+  "publisher": "Microsoft Corporation",
+  "usage": "/silent /install",
+  "documentation": "https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution"
+}

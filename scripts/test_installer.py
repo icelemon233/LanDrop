@@ -9,12 +9,13 @@ import sys
 import time
 import winreg
 import pefile
+import atexit
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
 from landrop.runtime import RuntimeStore
-from landrop.launcher import local_client, post
+from landrop.launcher import local_client, post, stop_previous
 from landrop import __version__
 parser = argparse.ArgumentParser()
 parser.add_argument('--setup', type=Path, required=True)
@@ -23,11 +24,21 @@ parser.add_argument('--install-dir', type=Path, required=True)
 parser.add_argument('--qa-id', required=True)
 parser.add_argument('--legacy', type=Path)
 args = parser.parse_args()
+args.setup = args.setup.resolve()
+args.state = args.state.resolve()
+args.install_dir = args.install_dir.resolve()
 for path in (args.setup, args.state, args.install_dir):
     if not path.resolve().is_relative_to(root.parent):
         raise SystemExit('Installer QA paths must remain under work/.')
 key = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\LanDrop.Cinna.QA.' + args.qa_id
 flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+
+def cleanup_runtime():
+    runtime = args.state / 'runtime.json'
+    if runtime.exists():
+        stop_previous(runtime)
+
+atexit.register(cleanup_runtime)
 
 def execute(command, expected=0):
     result = subprocess.run([str(item) for item in command], timeout=70, creationflags=flags)

@@ -42,8 +42,8 @@ VIAddVersionKey /LANG=2052 "CompanyName" "${Developer}"
 !define MUI_HEADERIMAGE_UNBITMAP "${ProjectRoot}\resources\installer-header.bmp"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "${ProjectRoot}\resources\installer-sidebar.bmp"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TITLE "安装LanDrop ${AppVersion}"
-!define MUI_WELCOMEPAGE_TEXT "安装后打开LanDrop，手机与电脑连接同一局域网，扫码即可传文件。$\r$\n$\r$\n支持 Windows 10/11 x64，无需安装 Python。$\r$\n$\r$\n升级和卸载会保留收到的文件与共享设置。"
+!define MUI_WELCOMEPAGE_TITLE "安装 LanDrop ${AppVersion}"
+!define MUI_WELCOMEPAGE_TEXT "电脑端使用独立桌面窗口，手机扫码后即可传文件。$\r$\n$\r$\n支持 Windows 10/11 x64，无需安装 Python。缺少 WebView2 时，安装程序会从 Microsoft 下载运行时。$\r$\n$\r$\n升级和卸载会保留收到的文件与共享设置。"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\LanDrop.exe"
 !define MUI_FINISHPAGE_RUN_PARAMETERS '${DataArgs}'
 !define MUI_FINISHPAGE_RUN_TEXT "打开LanDrop"
@@ -60,6 +60,46 @@ Var SetupMutex
 Var CheckResult
 Var Helper
 Var AllowClose
+Var WebViewVersion
+
+Function ReadWebViewVersion
+  StrCpy $WebViewVersion ""
+  SetRegView 32
+  ReadRegStr $WebViewVersion HKCU "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+  ${If} $WebViewVersion == ""
+  ${OrIf} $WebViewVersion == "0.0.0.0"
+    ReadRegStr $WebViewVersion HKLM "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+  ${EndIf}
+  SetRegView 64
+  ${If} $WebViewVersion == ""
+  ${OrIf} $WebViewVersion == "0.0.0.0"
+    ReadRegStr $WebViewVersion HKCU "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+  ${EndIf}
+  ${If} $WebViewVersion == ""
+  ${OrIf} $WebViewVersion == "0.0.0.0"
+    ReadRegStr $WebViewVersion HKLM "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+  ${EndIf}
+FunctionEnd
+
+Function EnsureWebView
+  Call ReadWebViewVersion
+  ${If} $WebViewVersion != ""
+  ${AndIf} $WebViewVersion != "0.0.0.0"
+    Return
+  ${EndIf}
+  DetailPrint "正在安装 Microsoft Edge WebView2 运行时…"
+  InitPluginsDir
+  SetOutPath "$PLUGINSDIR"
+  File /oname=webview2-setup.exe "${WebViewBootstrapper}"
+  ExecWait '"$PLUGINSDIR\webview2-setup.exe" /silent /install' $0
+  Call ReadWebViewVersion
+  ${If} $WebViewVersion == ""
+  ${OrIf} $WebViewVersion == "0.0.0.0"
+    MessageBox MB_OK|MB_ICONSTOP "WebView2 运行时未能安装。请连接网络后重试安装，或先从 Microsoft 安装 WebView2。原程序和收到的文件未修改。" /SD IDOK
+    SetErrorLevel 14
+    Quit
+  ${EndIf}
+FunctionEnd
 
 !macro Guard Prefix
 Function ${Prefix}PrepareApp
@@ -153,6 +193,7 @@ Section "LanDrop应用（必选）" Application
       Quit
     ${EndIf}
   location_checked:
+  Call EnsureWebView
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=maintenance.exe "${Payload}\LanDrop.exe"

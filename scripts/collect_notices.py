@@ -3,8 +3,8 @@ from pathlib import Path
 import sys
 
 root = Path(__file__).resolve().parents[1]
-parts = ['LanDrop — Third-party notices\n\nThis distribution contains Python, Tcl/Tk, qrcode and colorama, and is packaged with the PyInstaller bootloader. The installer uses unmodified NSIS 3.13 including LZMA. NSIS source: https://nsis.sourceforge.io/Download . The following notices are reproduced from the installed distributions.\n']
-for name in ['qrcode', 'colorama', 'pyinstaller']:
+parts = ['LanDrop — Third-party notices\n\nThis distribution contains Python, Tcl/Tk, qrcode, pywebview and Python.NET dependencies, and is packaged with the PyInstaller bootloader. The installer uses unmodified NSIS 3.13 including LZMA. NSIS source: https://nsis.sourceforge.io/Download . Microsoft Edge WebView2 is distributed under Microsoft terms: https://developer.microsoft.com/microsoft-edge/webview2/ . The following notices are reproduced from the installed distributions.\n']
+for name in ['qrcode', 'colorama', 'pyinstaller', 'pywebview', 'pythonnet', 'clr_loader', 'cffi', 'pycparser', 'proxy_tools', 'bottle', 'typing_extensions']:
     installed = distribution(name)
     for item in installed.files or []:
         if any(word in str(item).lower() for word in ('license', 'licence', 'copying')):
