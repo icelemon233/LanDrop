@@ -10,6 +10,7 @@ import time
 import winreg
 import pefile
 import atexit
+import ctypes
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
@@ -60,6 +61,30 @@ def registry():
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, access=winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as handle:
         return {name: winreg.QueryValueEx(handle, name)[0] for name in ('DisplayVersion', 'InstallLocation', 'DisplayName', 'Publisher', 'DisplayIcon')}
 
+
+def guard_operation(command, expected, kind='mutex'):
+    """A real Windows lock must prevent this NSIS operation from writing."""
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel.CloseHandle.restype = ctypes.c_int
+    name = 'Local\\LanDrop.Cinna.QA.' + args.qa_id + '.Installing'
+    if kind == 'mutex':
+        create = kernel.CreateMutexW
+        create.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
+        create.restype = ctypes.c_void_p
+        handle = create(None, 0, name)
+    else:
+        create = kernel.CreateEventW
+        create.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_wchar_p]
+        create.restype = ctypes.c_void_p
+        handle = create(None, 0, 0, name)
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        execute(command, expected)
+    finally:
+        kernel.CloseHandle(handle)
+
 exe = args.install_dir / 'LanDrop.exe'
 setup = args.setup.resolve(strict=True)
 try:
@@ -75,6 +100,10 @@ keep = received / '保留文件.txt'
 keep.write_bytes(b'preserve received data')
 source = args.state.parent / 'shared.apk'
 source.write_bytes(b'synthetic installer QA')
+
+guard_operation([setup, '/S', '/D=' + str(args.install_dir)], 12)
+guard_operation([setup, '/S', '/D=' + str(args.install_dir)], 21, 'event')
+assert not exe.exists(), 'Blocked setup modified the install directory'
 
 if args.legacy:
     old, _ = launch(args.legacy, True)
@@ -99,6 +128,10 @@ assert icon_resources(exe)==icon_resources(setup)
 shortcut_command = ['powershell', '-NoProfile', '-File', root / 'scripts/check_shortcuts.ps1', '-InstallRoot', args.install_dir, '-QaId', args.qa_id, '-StateDirectory', args.state]
 execute(shortcut_command)
 original_hash = hashlib.sha256(exe.read_bytes()).hexdigest()
+guard_operation([args.install_dir / 'Uninstall.exe', '/S', '_?=' + str(args.install_dir)], 12)
+guard_operation([args.install_dir / 'Uninstall.exe', '/S', '_?=' + str(args.install_dir)], 21, 'event')
+assert hashlib.sha256(exe.read_bytes()).hexdigest() == original_hash
+assert registry()['DisplayVersion'] == __version__
 untracked = args.install_dir / 'KeepMe.txt'
 untracked.write_bytes(b'not installed by application')
 process, info = launch(exe)
@@ -135,6 +168,6 @@ except FileNotFoundError:
     pass
 else:
     raise AssertionError('Uninstall registry entry remains')
-report = {'passed': ['per-user installation', 'running silent installation refused', 'normal app and bootloader exit', 'in-place reinstallation', 'running silent uninstallation refused', 'uninstall registration removed', 'shared settings preserved', 'received files preserved', 'untracked install file preserved','Cinna publisher','desktop and Start menu icon references','matching app, installer and uninstaller image resources'], 'legacyMigration': bool(args.legacy), 'payloadSha256': original_hash}
+report = {'passed': ['installer and uninstaller refuse concurrent maintenance with code 12', 'installer and uninstaller fail closed on lock creation failure with code 21', 'per-user installation', 'running silent installation refused', 'normal app and bootloader exit', 'in-place reinstallation', 'running silent uninstallation refused', 'uninstall registration removed', 'shared settings preserved', 'received files preserved', 'untracked install file preserved','Cinna publisher','desktop and Start menu icon references','matching app, installer and uninstaller image resources'], 'legacyMigration': bool(args.legacy), 'payloadSha256': original_hash}
 (args.state.parent / 'installer-validation.json').write_text(json.dumps(report, indent=2), 'utf-8')
 print(json.dumps(report, ensure_ascii=True, indent=2))

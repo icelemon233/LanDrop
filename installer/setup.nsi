@@ -47,6 +47,8 @@ VIAddVersionKey /LANG=2052 "CompanyName" "${Developer}"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\LanDrop.exe"
 !define MUI_FINISHPAGE_RUN_PARAMETERS '${DataArgs}'
 !define MUI_FINISHPAGE_RUN_TEXT "打开LanDrop"
+!define MUI_CUSTOMFUNCTION_GUIINIT RegisterSetupWindow
+!define MUI_CUSTOMFUNCTION_UNGUIINIT un.RegisterSetupWindow
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
@@ -61,6 +63,84 @@ Var CheckResult
 Var Helper
 Var AllowClose
 Var WebViewVersion
+
+; The mutex protects writes; a window property identifies this product's
+; existing wizard across versions without matching unrelated QA windows.
+!macro SetupInstance Prefix
+Function ${Prefix}FocusSetupWindow
+  StrCpy $2 20
+  retry_windows:
+    StrCpy $0 0
+  next_window:
+    FindWindow $0 "#32770" "" "" $0
+    ${If} $0 = 0
+      IntOp $2 $2 - 1
+      ${If} $2 > 0
+        Sleep 100
+        Goto retry_windows
+      ${EndIf}
+      Return
+    ${EndIf}
+    System::Call 'user32::GetPropW(p r0, w "${AppKey}.MaintenanceWindow") p .r1'
+    ${If} $1 = 1
+      System::Call 'user32::IsIconic(p r0) i .r1'
+      ${If} $1 != 0
+        System::Call 'user32::ShowWindow(p r0, i 9)'
+      ${EndIf}
+      System::Call 'user32::GetLastActivePopup(p r0) p .r1'
+      System::Call 'user32::SetForegroundWindow(p r1)'
+      StrCpy $0 1
+      Return
+    ${EndIf}
+    Goto next_window
+FunctionEnd
+
+Function ${Prefix}AcquireSetupLock
+  System::Call 'kernel32::CreateMutexW(p 0, i 0, w "Local\${AppKey}.Installing") p .r0 ?e'
+  Pop $1
+  StrCpy $SetupMutex $0
+  ${If} $SetupMutex = 0
+    MessageBox MB_OK|MB_ICONSTOP "无法启动安装或卸载。请关闭已有的 LanDrop 安装窗口后重试。" /SD IDOK
+    SetErrorLevel 21
+    Quit
+  ${EndIf}
+  ${If} $1 = 183
+    System::Call 'kernel32::CloseHandle(p $SetupMutex)'
+    StrCpy $SetupMutex 0
+    IfSilent setup_busy
+    Call ${Prefix}FocusSetupWindow
+    ${If} $0 = 0
+      ; An older wizard or a silent operation may not expose a window.
+      MessageBox MB_OK|MB_ICONINFORMATION "LanDrop 的安装或卸载正在进行。请回到已打开的向导继续，或等待操作完成后重试。" /SD IDOK
+    ${EndIf}
+    setup_busy:
+    SetErrorLevel 12
+    Quit
+  ${EndIf}
+FunctionEnd
+
+Function ${Prefix}RegisterSetupWindow
+  System::Call 'user32::SetPropW(p $HWNDPARENT, w "${AppKey}.MaintenanceWindow", p 1)'
+FunctionEnd
+
+Function ${Prefix}ReleaseSetupWindow
+  System::Call 'user32::RemovePropW(p $HWNDPARENT, w "${AppKey}.MaintenanceWindow")'
+  ${If} $SetupMutex != 0
+    System::Call 'kernel32::CloseHandle(p $SetupMutex)'
+    StrCpy $SetupMutex 0
+  ${EndIf}
+FunctionEnd
+!macroend
+!insertmacro SetupInstance ""
+!insertmacro SetupInstance "un."
+
+Function .onGUIEnd
+  Call ReleaseSetupWindow
+FunctionEnd
+
+Function un.onGUIEnd
+  Call un.ReleaseSetupWindow
+FunctionEnd
 
 Function ReadWebViewVersion
   StrCpy $WebViewVersion ""
@@ -155,14 +235,7 @@ Function .onInit
     SetErrorLevel 13
     Quit
   ${EndIf}
-  System::Call 'kernel32::CreateMutexW(p 0, i 0, w "Local\${AppKey}.Installing") p .r0 ?e'
-  Pop $1
-  StrCpy $SetupMutex $0
-  ${If} $1 = 183
-    MessageBox MB_OK|MB_ICONEXCLAMATION "另一个安装或卸载程序正在运行。" /SD IDOK
-    SetErrorLevel 12
-    Quit
-  ${EndIf}
+  Call AcquireSetupLock
 FunctionEnd
 
 Function .onVerifyInstDir
@@ -237,13 +310,7 @@ SectionEnd
 Function un.onInit
   SetShellVarContext current
   SetRegView 64
-  System::Call 'kernel32::CreateMutexW(p 0, i 0, w "Local\${AppKey}.Installing") p .r0 ?e'
-  Pop $1
-  StrCpy $SetupMutex $0
-  ${If} $1 = 183
-    SetErrorLevel 12
-    Quit
-  ${EndIf}
+  Call un.AcquireSetupLock
   ReadRegStr $0 HKCU "${UninstallKey}" "InstallLocation"
   ${If} $0 != $INSTDIR
     MessageBox MB_OK|MB_ICONSTOP "安装位置与记录不符，已停止卸载。" /SD IDOK
