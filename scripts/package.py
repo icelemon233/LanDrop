@@ -31,6 +31,7 @@ subprocess.run([
     '--version-file', str(metadata_path),
     '--add-data', str(root / 'landrop/web') + ';landrop/web',
     '--add-data', str(root / 'landrop/version.json') + ';landrop',
+    '--add-data', str(root / 'landrop/ui_theme.json') + ';landrop',
     '--add-data', str(root / 'resources/app.ico') + ';resources',
     '--hidden-import', 'qrcode.image.svg',
     '--hidden-import', 'webview.platforms.winforms',

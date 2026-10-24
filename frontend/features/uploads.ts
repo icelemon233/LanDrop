@@ -12,6 +12,7 @@ export class UploadQueue {
   tasks: Task[] = [];
   private running = false;
   private disposed = false;
+  private collapsed = false;
   constructor(private target: HTMLElement, private committed: () => Promise<void>, private notify: (message: string, error?: boolean) => void) {
     try {
       const stored: unknown = JSON.parse(sessionStorage.getItem('landrop.upload-tasks.v1') ?? '[]');
@@ -21,6 +22,7 @@ export class UploadQueue {
   }
   add(files: File[]): void {
     if (!files.length) return;
+    this.collapsed = document.body.dataset.role === 'phone' && (window.visualViewport?.height ?? innerHeight) < 540;
     if (files.length + this.tasks.length > 100) { this.notify('发送列表最多保留 100 个任务，请先清空已结束的任务。', true); return; }
     for (const file of files) this.tasks.push({ id: id(), file, name: file.name, size: file.size, phase: file.size > 8 * 1024**3 ? 'failed' : 'queued', percent: 0, message: file.size > 8 * 1024**3 ? '文件超过 8 GB，请拆分后发送。' : '等待发送' });
     this.render(); void this.process();
@@ -59,6 +61,12 @@ export class UploadQueue {
   }
   async cancelAll(): Promise<void> { await Promise.all(this.tasks.filter(task => !terminal(task)).map(task => this.cancel(task.id))); }
   clear(): void { this.tasks = this.tasks.filter(task => !terminal(task)); this.render(); }
+  toggle(): void {
+    const restore = this.target.querySelector('[data-action="toggle-transfers"]') === document.activeElement;
+    this.collapsed = !this.collapsed; this.render();
+    if (restore) this.target.querySelector<HTMLElement>('[data-action="toggle-transfers"]')?.focus({ preventScroll: true });
+  }
+  collapseForInput(): void { if (!this.collapsed && this.tasks.length) { this.collapsed = true; this.render(); } }
   retry(identifier: string): void { const task = this.tasks.find(item => item.id === identifier); if (task?.file && ['failed','cancelled'].includes(task.phase)) this.add([task.file]); }
   private async process(): Promise<void> {
     if (this.running) return; this.running = true;
@@ -87,7 +95,7 @@ export class UploadQueue {
   render(): void {
     this.persist();
     const pending = this.tasks.some(task => !terminal(task));
-    html(this.target, this.tasks.length ? `<div class="transfer-heading"><strong>${pending ? '正在发送文件' : '发送结果'}</strong><button class="text-button" data-action="clear-transfers">清空结果</button>${pending ? '<button class="text-button" data-action="cancel-all">取消进行中</button>' : ''}</div><div class="transfer-body">${this.tasks.map(task => `<div class="transfer-item ${task.phase}"><div class="transfer-name"><strong title="${escape(task.name)}">${escape(task.name)}</strong>${!terminal(task) ? `<button class="icon-button" data-action="cancel-upload" data-id="${task.id}" aria-label="取消发送 ${escape(task.name)}">${icon('close')}</button>` : icon(task.phase === 'done' ? 'check' : 'help')}</div><div class="progress-track" role="progressbar" aria-label="${escape(task.name)} 的发送进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${task.percent}"><span style="width:${task.percent}%"></span></div><small>${escape(task.message)}${task.phase === 'sending' ? ` · ${task.percent}%` : ''} · ${size(task.size)}</small>${task.phase === 'unknown' ? `<button class="text-button" data-action="check-upload" data-id="${task.id}">检查结果</button>` : ''}${task.file && ['failed','cancelled'].includes(task.phase) ? `<button class="text-button" data-action="retry-upload" data-id="${task.id}">重新发送</button>` : ''}</div>`).join('')}</div>` : '');
+    html(this.target, this.tasks.length ? `<div class="transfer-heading"><strong>${pending ? '正在发送文件' : '发送结果'}</strong>${!this.collapsed ? '<button class="text-button" data-action="clear-transfers">清空结果</button>' : ''}${pending && !this.collapsed ? '<button class="text-button" data-action="cancel-all">取消进行中</button>' : ''}<button class="icon-button" data-action="toggle-transfers" aria-controls="transfer-body" aria-expanded="${!this.collapsed}" aria-label="${this.collapsed ? '展开传输列表' : '收起传输列表'}">${icon(this.collapsed ? 'chevron-up' : 'chevron-down')}</button></div><div class="transfer-body" id="transfer-body" ${this.collapsed ? 'hidden' : ''}>${this.tasks.map(task => `<div class="transfer-item ${task.phase}"><div class="transfer-name"><strong title="${escape(task.name)}">${escape(task.name)}</strong>${!terminal(task) ? `<button class="icon-button" data-action="cancel-upload" data-id="${task.id}" aria-label="取消发送 ${escape(task.name)}">${icon('close')}</button>` : icon(task.phase === 'done' ? 'check' : 'help')}</div><div class="progress-track" role="progressbar" aria-label="${escape(task.name)} 的发送进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${task.percent}"><span style="width:${task.percent}%"></span></div><small>${escape(task.message)}${task.phase === 'sending' ? ` · ${task.percent}%` : ''} · ${size(task.size)}</small>${task.phase === 'unknown' ? `<button class="text-button" data-action="check-upload" data-id="${task.id}">检查结果</button>` : ''}${task.file && ['failed','cancelled'].includes(task.phase) ? `<button class="text-button" data-action="retry-upload" data-id="${task.id}">重新发送</button>` : ''}</div>`).join('')}</div>` : '');
     this.target.classList.toggle('open', this.tasks.length > 0);
   }
   dispose(): void { this.disposed = true; for (const task of this.tasks) task.abort?.(); this.persist(); }

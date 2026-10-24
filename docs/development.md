@@ -24,7 +24,7 @@ Synthetic UI fixtures require both `--test-data` and a separate `--state-dir`. T
 | state, files | Catalog, background scans, path and opened-handle checks |
 | sessions, transfers | Connection lifecycle, owner-bound idempotent uploads and final commit |
 | server | HTTP, host/origin checks, separate local/LAN worker budgets, socket cleanup |
-| desktop_window | Independent Windows window, UI-thread file pickers, restricted navigation, minimize on close, activation and explicit shutdown |
+| desktop_window | Independent Windows window, UI-thread file pickers, restricted navigation, saved close behavior, tray, activation and explicit shutdown |
 | desktop, platform_identity, window_runtime | Pre-window prompts, stable Windows identity and WebView2 detection |
 | frontend/api, session | Nested response validation, shared reads, late-response rejection |
 | frontend/features, ui | File lists, upload queue, dialogs, preferences and rendering |
@@ -51,4 +51,4 @@ The smoke test uses Python's standard `BROWSER` override as a trap: any external
 
 For installer QA, build with `--qa-state` and a unique `--qa-id`; use fresh paths under the project's ignored `.local/` directory. Registry keys, shortcuts, files and user data remain isolated. The Microsoft bootstrapper is pinned in `resources/webview2-bootstrapper.json`; the builder checks its hash and Microsoft Authenticode signature. Only missing runtimes are installed. The bootstrapper and NSIS tools are build inputs, not source files.
 
-The original Cinna portrait is in `resources/cinna-portrait.png`. Use Pillow with `scripts/export_brand.py` to re-export icons. Light colors follow Cinna tokens; dark colors are a local adaptation. Assets and fonts are not fetched at runtime.
+The original Cinna portrait is in `resources/cinna-portrait.png`. Use Pillow with `scripts/export_brand.py` to re-export icons. WebView and native caption/menu colors come from landrop/ui_theme.json; scripts/build.mjs generates the browser theme stylesheet. Assets and fonts are not fetched at runtime.

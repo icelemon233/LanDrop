@@ -90,6 +90,8 @@ with tempfile.TemporaryDirectory(prefix='landrop-smoke-') as temporary:
         with admin.open(base + '/api/state') as response:
             assert any(item['name'] == another.name for item in json.load(response)['files'])
         print('PASS: independent window, authenticated embedded UI, existing-window activation without a browser, drag-to-exe sharing, real SVG QR, LAN download/upload (SHA-256, 5 MB each).')
+        post(admin, base + '/api/admin/window-theme', {'mode': 'light'})
+        post(admin, base + '/api/admin/window-close-behavior', {'behavior': 'exit'})
         post(admin, base + '/api/admin/shutdown', {})
         process.wait(timeout=10)
         print('PASS: application exited cleanly.')
@@ -110,15 +112,20 @@ with tempfile.TemporaryDirectory(prefix='landrop-smoke-') as temporary:
             restored = json.load(response)
             assert restored['role'] == 'admin'
             assert len(restored['files']) == 2
+            assert restored['desktop']['closeBehavior'] == 'exit'
         post(restarted, restart_base + '/api/admin/shutdown', {})
         process.wait(timeout=10)
         assert not launch_record.exists()
         restart_observation = json.loads((runtime / 'desktop-observation.json').read_text('utf-8'))
         assert restart_observation['role'] == 'admin' and restart_observation['phase'] == 'connected'
+        assert restart_observation['theme'] == 'light'
+        assert restart_observation['native']['captionTheme'] == 'light'
+        assert restart_observation['native']['captionHeight'] == round(40 * restart_observation['native']['dpi'] / 96)
         print('PASS: cold launch, stale cookie recovery, repeated launch, full restart and saved shares. No external browser was launched.')
+        print('PASS: saved close behavior and light appearance restored in the native caption and WebView after a new port was selected.')
         if args.report:
             args.report.parent.mkdir(parents=True, exist_ok=True)
-            args.report.write_text(json.dumps({'payloadSha256': hashlib.sha256(binary.read_bytes()).hexdigest(), 'passed': ['independent Windows window', 'embedded admin session', 'reuse without browser launch', 'native shutdown and restart', 'LAN 5 MB bidirectional SHA-256', 'preserved shares'], 'firstWindow': observation, 'restartedWindow': restart_observation, 'externalBrowserLaunched': False}, indent=2), 'utf-8')
+            args.report.write_text(json.dumps({'payloadSha256': hashlib.sha256(binary.read_bytes()).hexdigest(), 'passed': ['independent Windows window', 'embedded admin session', 'reuse without browser launch', 'native shutdown and restart', 'LAN 5 MB bidirectional SHA-256', 'preserved shares', 'saved close behavior and appearance across ports'], 'firstWindow': observation, 'restartedWindow': restart_observation, 'externalBrowserLaunched': False}, indent=2), 'utf-8')
     finally:
         if process.poll() is None:
             # Exercise the same orderly exit used by the installer. No kill fallback.

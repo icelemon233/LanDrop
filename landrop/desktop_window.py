@@ -44,6 +44,11 @@ class DesktopWindow:
         self.allow_close = False
         self.failure = None
         self._downloads = set()
+        self.chrome = None
+
+    def preferences(self):
+        return {'closeBehavior': self.state.config.get('preferences', {}).get('windowCloseBehavior', 'tray'),
+                'trayAvailable': bool(self.chrome and self.chrome.available)}
 
     def prepare(self):
         set_app_identity()
@@ -54,7 +59,7 @@ class DesktopWindow:
         self.webview.settings['ALLOW_DOWNLOADS'] = False
         self.window = self.webview.create_window(
             'LanDrop', self.state.admin_url, width=1180, height=780,
-            min_size=(960, 640), background_color='#f7f9f6',
+            min_size=(800, 600), background_color=self._background(),
         )
         self.window.events.before_show += self._configure_native
         self.window.events.loaded += self._loaded
@@ -62,9 +67,16 @@ class DesktopWindow:
         self.window.events.closed += self._closed
 
     def _configure_native(self):
+        from .window_chrome import WindowChrome
+        self.chrome = WindowChrome(self)
         control = self.window.native.webview
         control.NavigationStarting += self._navigation
         control.CoreWebView2InitializationCompleted += self._initialized
+
+    def _background(self):
+        from .window_chrome import theme_colors
+        mode = self.state.config.get('preferences', {}).get('windowTheme', 'auto')
+        return theme_colors(mode)['canvas']
 
     def _navigation(self, sender, args):
         if str(args.Uri) != 'about:blank' and not is_window_url(str(args.Uri), self.state.port):
@@ -86,13 +98,27 @@ class DesktopWindow:
             try:
                 until = time.monotonic() + 20
                 while not self.closed and time.monotonic() < until:
-                    script = "JSON.stringify({phase:document.body.dataset.connectionPhase,role:document.body.dataset.role,title:document.title,width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth})"
+                    script = "JSON.stringify({phase:document.body.dataset.connectionPhase,role:document.body.dataset.role,title:document.title,width:innerWidth,height:innerHeight,theme:document.documentElement.dataset.theme,host:document.body.dataset.desktopHost,overflow:document.documentElement.scrollWidth>innerWidth})"
                     task = self._on_ui(lambda: self.window.native.webview.CoreWebView2.ExecuteScriptAsync(script))
                     task.Wait(5000)
                     if not task.IsCompleted:
                         continue
                     observation = json.loads(json.loads(str(task.Result)))
                     if observation.get('phase') == 'connected':
+                        if self.chrome:
+                            observation['native'] = self._on_ui(lambda: {
+                                'dpi': round(self.chrome.scale * 96),
+                                'winformsDpi': self.window.native.DeviceDpi,
+                                'captionHeight': self.chrome.caption.Height,
+                                'captionTheme': self.chrome.mode,
+                                'trayAvailable': self.chrome.available,
+                                'webviewTop': self.window.native.webview.Top,
+                                'webviewHeight': self.window.native.webview.Height,
+                                'clientHeight': self.window.native.ClientSize.Height,
+                                'windowHeight': self.window.native.Height,
+                                'windowWidth': self.window.native.Width,
+                                'captionButtons': [button.AccessibleName for button in self.chrome.buttons],
+                            })
                         (self.state.data_dir / 'desktop-observation.json').write_text(json.dumps(observation), 'utf-8')
                         break
                     time.sleep(.2)
@@ -111,14 +137,42 @@ class DesktopWindow:
             if self.dialog_busy:
                 return False
         if not self.allow_close:
-            self.window.minimize()
-            return False
+            if self.preferences()['closeBehavior'] == 'tray':
+                hidden = False
+                try:
+                    hidden = bool(self.chrome and self._on_ui(self.chrome.hide))
+                except Exception:
+                    logging.exception('Tray hide failed; minimizing instead')
+                if not hidden:
+                    self.window.minimize()
+                return False
+            if not self._confirm_exit():
+                return False
+            self.allow_close = True
         self.state.stopping.set()
         self.state.scan_requested.set()
         self.state.uploads.cancel_all()
         for operation in tuple(self._downloads):
             operation.Cancel()
+        if self.chrome:
+            self._on_ui(self.chrome.dispose)
         return True
+
+    def _confirm_exit(self):
+        if not self.state.uploads.active_count() and not self.state.active_downloads and not self._downloads:
+            return True
+        from System.Windows.Forms import DialogResult, MessageBox, MessageBoxButtons, MessageBoxIcon
+        return self._on_ui(lambda: MessageBox.Show(self.window.native, '退出会中断正在进行的传输。已保存的文件和共享目录会保留。是否退出？', '退出 LanDrop', MessageBoxButtons.YesNo, MessageBoxIcon.Warning)) == DialogResult.Yes
+
+    def _request_exit(self):
+        try:
+            self.ensure_can_shutdown()
+            if self._confirm_exit():
+                self.allow_close = True
+                self.window.destroy()
+        except AppError:
+            from System.Windows.Forms import MessageBox
+            MessageBox.Show(self.window.native, '请先关闭系统文件选择窗口，再退出 LanDrop。', 'LanDrop')
 
     def ensure_can_shutdown(self):
         with self.lock:
@@ -194,7 +248,7 @@ class DesktopWindow:
             cookie.SameSite = CoreWebView2CookieSameSiteKind.Strict
             core.CookieManager.AddOrUpdateCookie(cookie)
             if form.WindowState == FormWindowState.Minimized:
-                form.WindowState = FormWindowState.Normal
+                form.WindowState = self.chrome.last_window_state if self.chrome else FormWindowState.Normal
             form.Show()
             form.Activate()
             core.ExecuteScriptAsync("document.dispatchEvent(new Event('visibilitychange'))")

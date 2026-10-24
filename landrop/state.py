@@ -116,6 +116,18 @@ class State:
             self.settings.commit(candidate)
             self.name = name.strip()
 
+    def set_window_preference(self, key, value):
+        allowed = {'windowCloseBehavior': ('tray', 'exit'), 'windowTheme': ('auto', 'light', 'dark'), 'trayNoticeSeen': (True, False)}
+        if key not in allowed or value not in allowed[key] or (key == 'trayNoticeSeen' and type(value) is not bool):
+            raise AppError('窗口设置无效。')
+        with self.lock:
+            candidate = self.config
+            preferences = candidate.setdefault('preferences', {})
+            if preferences.get(key) == value:
+                return
+            preferences[key] = value
+            self.settings.commit(candidate)
+
     def add_files(self, paths: list[str], refresh: bool = True):
         validated = []
         for raw in paths:

@@ -10,6 +10,7 @@ from landrop.desktop_window import DesktopWindow, is_window_url
 from landrop.errors import AppError
 from landrop.state import State
 from landrop.window_runtime import valid_runtime_version
+from landrop.window_chrome import caption_hit
 
 
 class DesktopWindowTests(unittest.TestCase):
@@ -59,7 +60,7 @@ class DesktopWindowTests(unittest.TestCase):
         self.assertFalse(self.host._closing())
         self.assertFalse(self.state.stopping.is_set())
 
-    def test_titlebar_close_minimizes_and_preserves_service_and_transfers(self):
+    def test_unavailable_tray_falls_back_to_taskbar_and_preserves_transfers(self):
         self.state.scan_requested.clear()
         operation = Mock()
         self.host._downloads.add(operation)
@@ -76,6 +77,55 @@ class DesktopWindowTests(unittest.TestCase):
         self.window.create_confirmation_dialog.assert_not_called()
         self.window.destroy.assert_not_called()
         operation.Cancel.assert_not_called()
+
+    def test_close_to_tray_preserves_service_and_owned_transfers(self):
+        self.host.chrome = Mock()
+        self.host.chrome.hide.return_value = True
+        operation = Mock()
+        self.host._downloads.add(operation)
+        self.assertFalse(self.host._closing())
+        self.host.chrome.hide.assert_called_once()
+        self.window.minimize.assert_not_called()
+        self.assertFalse(self.state.stopping.is_set())
+        operation.Cancel.assert_not_called()
+
+    def test_tray_failure_never_hides_the_only_recoverable_window(self):
+        self.host.chrome = Mock()
+        self.host.chrome.hide.side_effect = OSError('synthetic missing taskbar')
+        with self.assertLogs(level='ERROR'):
+            self.assertFalse(self.host._closing())
+        self.window.minimize.assert_called_once()
+        self.assertFalse(self.state.stopping.is_set())
+
+    def test_close_preference_survives_restart_and_respects_cancel(self):
+        self.state.set_window_preference('windowCloseBehavior', 'exit')
+        restored = State(self.state.data_dir)
+        self.assertEqual(DesktopWindow(restored, self.gui).preferences()['closeBehavior'], 'exit')
+        with patch.object(self.host, '_confirm_exit', return_value=False):
+            self.assertFalse(self.host._closing())
+        self.assertFalse(self.state.stopping.is_set())
+        with patch.object(self.host, '_confirm_exit', return_value=True):
+            self.assertTrue(self.host._closing())
+        self.assertTrue(self.state.stopping.is_set())
+
+    def test_window_preference_failure_keeps_the_previous_choice(self):
+        with patch('landrop.settings.os.replace', side_effect=OSError('synthetic disk full')):
+            with self.assertRaises(AppError):
+                self.state.set_window_preference('windowCloseBehavior', 'exit')
+        self.assertEqual(self.host.preferences()['closeBehavior'], 'tray')
+        with self.assertRaises(AppError):
+            self.state.set_window_preference('windowCloseBehavior', 'unknown')
+
+    def test_caption_hit_testing_preserves_edges_and_client_controls_at_dpi_scales(self):
+        for scale in (1, 1.25, 1.5, 2):
+            with self.subTest(scale=scale):
+                width, height = round(1000 * scale), round(700 * scale)
+                self.assertEqual(caption_hit(1, 1, width, height, scale, False), 13)
+                self.assertEqual(caption_hit(width - 1, height - 1, width, height, scale, False), 17)
+                self.assertEqual(caption_hit(round(100 * scale), round(20 * scale), width, height, scale, False), 2)
+                self.assertIsNone(caption_hit(round(200 * scale), round(100 * scale), width, height, scale, False))
+                self.assertIsNone(caption_hit(width - round(100 * scale), round(20 * scale), width, height, scale, False))
+                self.assertEqual(caption_hit(1, 1, width, height, scale, True), 3)
 
     def test_explicit_exit_cancels_owned_transfers_and_signals_service_cleanup(self):
         self.state.active_downloads = 1

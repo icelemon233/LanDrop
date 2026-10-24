@@ -181,6 +181,15 @@ class Handler(BaseHTTPRequestHandler):
     def json(self, payload: dict, status: int = 200, extra: dict | None = None):
         self.output(json.dumps(payload, ensure_ascii=False).encode(), status=status, extra=extra)
 
+    def desktop_html(self):
+        page = (WEB / 'index.html').read_bytes()
+        attributes = b'<body data-client="desktop" data-desktop-host="window">' if self.server.desktop else b'<body data-client="desktop">'
+        if self.server.desktop:
+            mode = self.state.config.get('preferences', {}).get('windowTheme')
+            if mode in ('auto', 'light', 'dark'):
+                page = page.replace(b'<html lang="zh-CN">', f'<html lang="zh-CN" data-window-theme="{mode}">'.encode())
+        return page.replace(b'<body>', attributes)
+
     def session(self, admin: bool = False) -> dict:
         cookies = SimpleCookie()
         try:
@@ -312,13 +321,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.session(admin=True)
                 return self.output(b'', status=303, extra={'Location': '/desktop'})
             except AppError:
-                return self.output((WEB / 'index.html').read_bytes().replace(b'<body>', b'<body data-client="desktop">'), 'text/html; charset=utf-8', status=401)
+                return self.output(self.desktop_html(), 'text/html; charset=utf-8', status=401)
         if path == '/desktop':
             if not self.local:
                 raise AppError('电脑端入口只能在运行程序的这台电脑上打开。', 403)
-            return self.output((WEB / 'index.html').read_bytes().replace(b'<body>', b'<body data-client="desktop">'), 'text/html; charset=utf-8')
+            return self.output(self.desktop_html(), 'text/html; charset=utf-8')
         if path == '/api/state':
-            return self.json(self.state.snapshot(self.session()))
+            result = self.state.snapshot(self.session())
+            if result['role'] == 'admin' and self.server.desktop:
+                result['desktop'] = self.server.desktop.preferences()
+            return self.json(result)
         if path == '/api/inbox':
             self.session(admin=True)
             return self.json({'files': self.state.inbox_files()})
@@ -444,6 +456,19 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({'ok': True, 'backup': backup.name if backup else None})
         elif action == 'computer-name':
             self.state.set_name(body.get('name'))
+        elif action == 'window-close-behavior':
+            if desktop is None:
+                raise AppError('当前没有桌面窗口。', 409, 'desktop-unavailable')
+            self.state.set_window_preference('windowCloseBehavior', body.get('behavior'))
+        elif action == 'window-theme':
+            mode = body.get('mode')
+            if mode not in ('auto', 'light', 'dark'):
+                raise AppError('主题设置无效。')
+            if desktop is None or desktop.chrome is None:
+                raise AppError('当前没有桌面窗口。', 409, 'desktop-unavailable')
+            desktop._on_ui(lambda: desktop.chrome.set_theme(mode))
+            if not self.state.settings.problem:
+                self.state.set_window_preference('windowTheme', mode)
         elif action == 'refresh':
             self.state.request_scan()
         elif action == 'shutdown':

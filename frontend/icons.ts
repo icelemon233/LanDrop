@@ -1,4 +1,9 @@
 const paths: Record<string, string> = {
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  back: '<path d="m12 5-7 7 7 7M5 12h14"/>',
+  'chevron-up': '<path d="m6 15 6-6 6 6"/>',
+  'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  panel: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>',
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
   'eye-off': '<path d="m3 3 18 18M10 5a11 11 0 0 1 12 7 16 16 0 0 1-3 4M6 6a17 17 0 0 0-4 6s4 7 10 7a10 10 0 0 0 5-1M10 10a3 3 0 0 0 4 4"/>',
   settings: '<path d="M9 3h6l1 4 4 1v8l-4 1-1 4H9l-1-4-4-1V8l4-1 1-4Z"/><circle cx="12" cy="12" r="3"/>',

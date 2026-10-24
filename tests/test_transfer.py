@@ -294,7 +294,7 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(len(restored.catalog), 1)
 
     def test_phone_cannot_manage_files_or_connections(self):
-        for action in ['remove-file', 'add-folder', 'add-files', 'reset-pairs', 'shutdown', 'pick-files']:
+        for action in ['remove-file', 'add-folder', 'add-files', 'reset-pairs', 'shutdown', 'pick-files', 'window-close-behavior', 'window-theme']:
             self.assertEqual(self.call('/api/admin/' + action, 'POST', {}, self.phone)[0], 403)
 
     def test_forbidden_json_body_can_arrive_after_headers(self):

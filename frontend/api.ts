@@ -16,6 +16,7 @@ const array = <T>(value: unknown, valid: (value: unknown) => value is T): value 
 export function parseSnapshot(value: unknown): Snapshot {
   if (!object(value) || !['admin','phone'].includes(String(value.role)) || !text(value.computer) || !text(value.version) || !text(value.warning) || typeof value.testMode !== 'boolean' || !array(value.files, file)) throw new ApiError('文件列表格式不完整，请刷新重试。', 502, 'response-invalid');
   if (value.role === 'admin') {
+    if (value.desktop !== undefined && (!object(value.desktop) || !['tray','exit'].includes(String(value.desktop.closeBehavior)) || typeof value.desktop.trayAvailable !== 'boolean')) throw new ApiError('窗口设置格式不完整，请重新打开程序。', 502, 'response-invalid');
     if (!text(value.pairUrl) || !text(value.address) || !array(value.addresses, text) || !number(value.port) || !text(value.inboxPath) || !array(value.folders, folder) || !array(value.devices, device) || !array(value.history, transfer) || !array(value.received, file) || !object(value.settingsStatus) || typeof value.settingsStatus.protected !== 'boolean' || !text(value.settingsStatus.reason) || !number(value.activeTransfers)) throw new ApiError('电脑状态格式不完整，请重新打开程序。', 502, 'response-invalid');
     let url: URL;
     try { url = new URL(value.pairUrl); } catch { throw new ApiError('手机连接地址不正确。', 502, 'response-invalid'); }

@@ -8,6 +8,7 @@ export interface Snapshot {
   folders?: Folder[]; devices?: Device[]; history?: Transfer[]; received?: SharedFile[];
   settingsStatus?: { protected: boolean; reason: string }; activeTransfers?: number;
   testMode: boolean; scanning?: boolean;
+  desktop?: { closeBehavior: 'tray' | 'exit'; trayAvailable: boolean };
 }
 export type UploadPhase = 'queued' | 'receiving' | 'saving' | 'completed' | 'cancelled' | 'failed';
 export interface UploadStatus { id: string; name: string; size: number; shared: boolean; phase: UploadPhase; received: number; savedName: string; error: string }

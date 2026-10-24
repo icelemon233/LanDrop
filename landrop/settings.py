@@ -39,6 +39,8 @@ def validate_settings(value: object) -> dict:
     prefs = value.get('preferences', {})
     if not isinstance(prefs, dict) or ('computerName' in prefs and (not isinstance(prefs['computerName'], str) or not 1 <= len(prefs['computerName'].strip()) <= 64)):
         raise ValueError('invalid-preferences')
+    if ('windowCloseBehavior' in prefs and prefs['windowCloseBehavior'] not in ('tray', 'exit')) or ('windowTheme' in prefs and prefs['windowTheme'] not in ('auto', 'light', 'dark')) or ('trayNoticeSeen' in prefs and type(prefs['trayNoticeSeen']) is not bool):
+        raise ValueError('invalid-preferences')
     return copy.deepcopy(value)
 
 

@@ -1,3 +1,7 @@
+# Version 1.2.3 verification
+
+See [LanDrop 1.2.3 UI verification](ui-verification-20261024.md) for the 2026-10-24 changes, screenshots, checks and remaining native-input/device checks. The record below describes the previous 1.2.2 release.
+
 # Version 1.2.2 verification
 
 The Windows desktop host uses an independent WinForms/WebView2 window. The phone interface remains in the phone's browser. Source inputs and the packaged executable are checked against the build manifest; the release manifest records source and artifact hashes.

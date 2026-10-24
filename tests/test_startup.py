@@ -10,7 +10,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.parse import urlsplit
 from urllib.request import build_opener, HTTPCookieProcessor, ProxyHandler
 
@@ -26,11 +26,17 @@ class StartupTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.state = State(Path(self.temp.name))
+        state = self.state
         class WindowFixture:
             def __init__(self):
                 self.ready = threading.Event()
                 self.ready.set()
                 self.calls = []
+                self.chrome = Mock()
+            def preferences(self):
+                return {'closeBehavior': state.config.get('preferences', {}).get('windowCloseBehavior', 'tray'), 'trayAvailable': True}
+            def _on_ui(self, operation):
+                return operation()
             def call(self, action):
                 self.calls.append(action)
                 return True
@@ -72,6 +78,24 @@ class StartupTests(unittest.TestCase):
             with self.assertRaises(AppError):
                 main.reopen(self.runtime, self.args)
             opened.assert_not_called()
+
+    def test_authenticated_window_settings_are_saved_and_reported(self):
+        base = f'http://127.0.0.1:{self.state.port}'
+        client = build_opener(ProxyHandler({}), HTTPCookieProcessor(http.cookiejar.CookieJar()))
+        launched = launcher.post(client, base, '/api/desktop-launch', {'token': self.state.admin_token})
+        client.open(launched['url']).close()
+        launcher.post(client, base, '/api/admin/window-close-behavior', {'behavior': 'exit'})
+        launcher.post(client, base, '/api/admin/window-theme', {'mode': 'dark'})
+        self.desktop.chrome.set_theme.assert_called_once_with('dark')
+        with client.open(base + '/api/state') as response:
+            self.assertEqual(json.load(response)['desktop'], {'closeBehavior': 'exit', 'trayAvailable': True})
+        restored = State(self.state.data_dir)
+        self.assertEqual(restored.config['preferences']['windowTheme'], 'dark')
+        with client.open(base + '/desktop') as response:
+            self.assertIn(b'data-window-theme="dark"', response.read())
+        with self.assertRaises(AppError):
+            launcher.post(client, base, '/api/admin/window-close-behavior', {'behavior': 'unknown'})
+        self.assertEqual(self.state.config['preferences']['windowCloseBehavior'], 'exit')
 
     def test_local_reopen_works_with_proxy_environment(self):
         import os

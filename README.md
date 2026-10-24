@@ -27,7 +27,7 @@ Requires Windows 10/11 x64. Python and a phone app are not required. The install
 
 Updates and uninstallation preserve received files and shared-folder settings. Transfer history keeps the latest 100 entries for the current run; theme preferences stay on the current device.
 
-The title-bar close button minimizes LanDrop to the taskbar and keeps transfers running. Choose **退出程序** to exit the app and stop unfinished transfers. Opening LanDrop again restores the existing window. Before upgrading, close file pickers and let the installer request a normal exit.
+Minimizing keeps LanDrop in the taskbar. Closing the window sends it to the tray and keeps transfers running; Settings can change this to exit. The tray menu can reopen or exit the app. If the tray is unavailable, the window stays in the taskbar. Choose **退出应用** to stop the app and unfinished transfers. Opening LanDrop again restores the existing window. Before upgrading, close file pickers and let the installer request a normal exit.
 
 ## Connection
 
