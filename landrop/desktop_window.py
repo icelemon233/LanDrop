@@ -118,7 +118,11 @@ class DesktopWindow:
                                 'windowHeight': self.window.native.Height,
                                 'windowWidth': self.window.native.Width,
                                 'captionButtons': [button.AccessibleName for button in self.chrome.buttons],
+                                'captionFontPoints': self.chrome.label.Font.SizeInPoints,
+                                'captionGlyphPixels': round(10 * self.chrome.scale),
+                                'clientTopInset': self.chrome.client_top_inset(),
                             })
+                            self._on_ui(lambda: self.chrome.render_caption(self.state.data_dir / 'native-caption.png'))
                         (self.state.data_dir / 'desktop-observation.json').write_text(json.dumps(observation), 'utf-8')
                         break
                     time.sleep(.2)

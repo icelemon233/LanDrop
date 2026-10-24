@@ -1,4 +1,8 @@
-# Version 1.2.3 verification
+# Version 1.2.4 verification
+
+See [the 1.2.4 native caption fix](titlebar-verification-1.2.4.md) for rendered native controls, input hit tests and minimize/maximize/restore state checks.
+
+## Version 1.2.3 verification
 
 See [LanDrop 1.2.3 UI verification](ui-verification-20261024.md) for the 2026-10-24 changes, screenshots, checks and remaining native-input/device checks. The record below describes the previous 1.2.2 release.
 

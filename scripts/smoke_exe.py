@@ -6,6 +6,7 @@ import hashlib
 import http.cookiejar
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -43,7 +44,12 @@ with tempfile.TemporaryDirectory(prefix='landrop-smoke-') as temporary:
         info = json.loads((runtime / 'runtime.json').read_text('utf-8'))
         base = 'http://127.0.0.1:' + str(info['port'])
         observation = json.loads((runtime / 'desktop-observation.json').read_text('utf-8'))
+        if args.report:
+            args.report.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(runtime / 'native-caption.png', args.report.parent / 'native-caption-first.png')
         assert observation['role'] == 'admin' and observation['phase'] == 'connected' and not observation['overflow']
+        assert observation['native']['clientTopInset'] == 0
+        assert observation['native']['captionFontPoints'] == 10.5
         assert not launch_record.exists(), 'The application opened an external browser'
         admin = build_opener(ProxyHandler({}), HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
@@ -117,10 +123,13 @@ with tempfile.TemporaryDirectory(prefix='landrop-smoke-') as temporary:
         process.wait(timeout=10)
         assert not launch_record.exists()
         restart_observation = json.loads((runtime / 'desktop-observation.json').read_text('utf-8'))
+        if args.report:
+            shutil.copy2(runtime / 'native-caption.png', args.report.parent / 'native-caption-restarted.png')
         assert restart_observation['role'] == 'admin' and restart_observation['phase'] == 'connected'
         assert restart_observation['theme'] == 'light'
         assert restart_observation['native']['captionTheme'] == 'light'
         assert restart_observation['native']['captionHeight'] == round(40 * restart_observation['native']['dpi'] / 96)
+        assert restart_observation['native']['captionGlyphPixels'] == round(10 * restart_observation['native']['dpi'] / 96)
         print('PASS: cold launch, stale cookie recovery, repeated launch, full restart and saved shares. No external browser was launched.')
         print('PASS: saved close behavior and light appearance restored in the native caption and WebView after a new port was selected.')
         if args.report:

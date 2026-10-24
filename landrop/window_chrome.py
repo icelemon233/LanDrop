@@ -8,6 +8,8 @@ from ctypes import wintypes
 from pathlib import Path
 
 THEMES = json.loads(Path(__file__).with_name('ui_theme.json').read_text('utf-8'))
+CAPTION_HEIGHT = 40
+CAPTION_BUTTON_WIDTH = 46
 
 
 def theme_colors(mode):
@@ -34,14 +36,23 @@ def caption_hit(x: int, y: int, width: int, height: int, scale: float, maximized
             return 16 if left else 17 if right else 15
         if left or right:
             return 10 if left else 11
-    if 0 <= y - inset < round(40 * scale) and x - inset < width - 2 * inset - round(138 * scale):
+    if 0 <= y - inset < round(CAPTION_HEIGHT * scale):
+        if x - inset >= width - 2 * inset - round(3 * CAPTION_BUTTON_WIDTH * scale):
+            return 1  # HTCLIENT: WinForms buttons must receive normal mouse messages.
         return 3 if x - inset < round(36 * scale) else 2
     return None
 
 
+def frame_client_bounds(bounds, maximized, border_x=0, border_y=0):
+    left, top, right, bottom = bounds
+    if maximized:
+        return left + border_x, top + border_y, right - border_x, bottom - border_y
+    return bounds
+
+
 class WindowChrome:
     def __init__(self, host):
-        from System.Drawing import Font
+        from System.Drawing import Bitmap, Font, Icon, Image, SystemColors
         from System.Windows.Forms import Button, ContextMenuStrip, DockStyle, FlatStyle, Label, NotifyIcon, Panel, PictureBox, PictureBoxSizeMode, ToolStripMenuItem, ToolStripRenderMode
         from Microsoft.Win32 import SystemEvents
 
@@ -51,10 +62,18 @@ class WindowChrome:
         self._disposed = False
         self._callbacks = []
         self._hooks = []
-        self._font = Font('Segoe UI', 10)
-        self._glyph_font = Font('Segoe MDL2 Assets', 9)
-        self._icon = self.form.Icon.Clone()
-        self._bitmap = self._icon.ToBitmap()
+        # GDI+ already converts point sizes using the drawing context's DPI.
+        self._font = Font('Segoe UI', 10.5)
+        self._foreground = SystemColors.ControlText
+        self._icon = Icon(str(Path(__file__).resolve().parent.parent / 'resources/app.ico'))
+        self.form.Icon = self._icon
+        # Use the existing brand PNG for the visible caption; Icon.ToBitmap can
+        # corrupt PNG-compressed ICO frames in the .NET Framework renderer.
+        source = Image.FromFile(str(Path(__file__).with_name('web') / 'assets/cinna-icon.png'))
+        try:
+            self._bitmap = Bitmap(source)
+        finally:
+            source.Dispose()
         self.caption = Panel()
         self.caption.Dock = DockStyle.Top
         self.picture = PictureBox()
@@ -64,22 +83,23 @@ class WindowChrome:
         self.label.Text = 'LanDrop'
         self.label.Font = self._font
         self.label.AutoSize = False
+        self.label.AutoEllipsis = True
         from System.Drawing import ContentAlignment
         self.label.TextAlign = ContentAlignment.MiddleLeft
         self.buttons = []
-        for name, glyph, callback in (
-            ('最小化', '\ue921', lambda *_: host.window.minimize()),
-            ('最大化', '\ue922', lambda *_: self._maximize()),
-            ('关闭窗口', '\ue8bb', lambda *_: self.form.Close()),
+        for name, command, callback in (
+            ('最小化', 'minimize', lambda *_: self._minimize()),
+            ('最大化', 'maximize', lambda *_: self._maximize()),
+            ('关闭窗口', 'close', lambda *_: self.form.Close()),
         ):
             button = Button()
             button.AccessibleName = name
-            button.Text = glyph
-            button.Font = self._glyph_font
+            button.Text = ''
             button.FlatStyle = FlatStyle.Flat
             button.FlatAppearance.BorderSize = 0
             button.TabStop = False
             button.Click += callback
+            button.Paint += lambda sender, args, kind=command: self._paint_button(sender, args, kind)
             self.caption.Controls.Add(button)
             self.buttons.append(button)
         self.caption.Controls.Add(self.picture)
@@ -89,6 +109,7 @@ class WindowChrome:
         self._install_frame()
         self.form.Resize += self._layout
         self.form.DpiChanged += self._layout
+        self.form.Shown += self._layout
         self._system_event = self._system_changed
         SystemEvents.UserPreferenceChanged += self._system_event
         self.form.update_title_bar_theme = self._system_event
@@ -129,35 +150,78 @@ class WindowChrome:
         if self.form.WindowState != FormWindowState.Minimized:
             self.last_window_state = self.form.WindowState
         scale = self.user32.GetDpiForWindow(self.hwnd) / 96 or 1
-        if getattr(self, 'scale', None) != scale:
-            from System.Drawing import Font
-            previous, previous_glyph = self._font, self._glyph_font
-            self._font, self._glyph_font = Font('Segoe UI', 10.5 * scale), Font('Segoe MDL2 Assets', 9 * scale)
-            self.label.Font = self._font
-            for button in self.buttons:
-                button.Font = self._glyph_font
-            if self.menu:
-                self.menu.Font = self._font
-            previous.Dispose()
-            previous_glyph.Dispose()
         self.scale = scale
-        self.caption.Height = round(40 * scale)
+        self.caption.Height = round(CAPTION_HEIGHT * scale)
         self.picture.Location = Point(round(12 * scale), round(10 * scale))
         self.picture.Size = Size(round(20 * scale), round(20 * scale))
         self.label.Location = Point(round(40 * scale), 0)
         self.label.Size = Size(max(0, self.form.ClientSize.Width - round(190 * scale)), self.caption.Height)
         for index, button in enumerate(self.buttons):
-            button.Location = Point(self.form.ClientSize.Width - round((3 - index) * 46 * scale), 0)
-            button.Size = Size(round(46 * scale), self.caption.Height)
+            left = self.form.ClientSize.Width - round((3 - index) * CAPTION_BUTTON_WIDTH * scale)
+            right = self.form.ClientSize.Width - round((2 - index) * CAPTION_BUTTON_WIDTH * scale)
+            button.Location = Point(left, 0)
+            button.Size = Size(right - left, self.caption.Height)
+            button.Invalidate()
         maximized = self.user32.IsZoomed(self.hwnd)
-        self.buttons[1].Text = '\ue923' if maximized else '\ue922'
         self.buttons[1].AccessibleName = '还原' if maximized else '最大化'
 
+    def _minimize(self):
+        from System.Windows.Forms import FormWindowState
+        self.form.WindowState = FormWindowState.Minimized
+
     def _maximize(self):
-        if self.user32.IsZoomed(self.hwnd):
-            self.host.window.restore()
-        else:
-            self.host.window.maximize()
+        from System.Windows.Forms import FormWindowState
+        self.form.WindowState = FormWindowState.Normal if self.form.WindowState == FormWindowState.Maximized else FormWindowState.Maximized
+
+    def _paint_button(self, button, args, command):
+        from System.Drawing import GraphicsUnit, Pen
+        from System.Drawing.Drawing2D import PixelOffsetMode, SmoothingMode
+        from System.Windows.Forms import FormWindowState
+        scale = getattr(self, 'scale', 1)
+        size = 10 * scale
+        left, top = (button.ClientSize.Width - size) / 2, (button.ClientSize.Height - size) / 2
+        graphics = args.Graphics
+        saved = graphics.Save()
+        graphics.PageUnit = GraphicsUnit.Pixel
+        graphics.PixelOffsetMode = PixelOffsetMode.Half
+        graphics.SmoothingMode = SmoothingMode.AntiAlias
+        pen = Pen(self._foreground, max(1., scale))
+        try:
+            if command == 'minimize':
+                graphics.DrawLine(pen, float(left), float(top + size / 2), float(left + size), float(top + size / 2))
+            elif command == 'close':
+                graphics.DrawLine(pen, float(left), float(top), float(left + size), float(top + size))
+                graphics.DrawLine(pen, float(left + size), float(top), float(left), float(top + size))
+            elif self.form.WindowState == FormWindowState.Maximized:
+                offset, side = 2 * scale, 8 * scale
+                graphics.DrawLine(pen, float(left + offset), float(top + offset), float(left + offset), float(top))
+                graphics.DrawLine(pen, float(left + offset), float(top), float(left + size), float(top))
+                graphics.DrawLine(pen, float(left + size), float(top), float(left + size), float(top + side))
+                graphics.DrawLine(pen, float(left + size), float(top + side), float(left + side), float(top + side))
+                graphics.DrawRectangle(pen, float(left), float(top + offset), float(side), float(side))
+            else:
+                graphics.DrawRectangle(pen, float(left), float(top), float(size), float(size))
+        finally:
+            pen.Dispose()
+            graphics.Restore(saved)
+
+    def render_caption(self, path):
+        """Render only our caption controls for isolated QA, without desktop capture."""
+        from System.Drawing import Bitmap, Rectangle
+        from System.Drawing.Imaging import ImageFormat
+        bitmap = Bitmap(self.caption.Width, self.caption.Height)
+        bitmap.SetResolution(float(96 * self.scale), float(96 * self.scale))
+        try:
+            self.caption.DrawToBitmap(bitmap, Rectangle(0, 0, bitmap.Width, bitmap.Height))
+            bitmap.Save(str(path), ImageFormat.Png)
+        finally:
+            bitmap.Dispose()
+
+    def client_top_inset(self):
+        bounds, origin = wintypes.RECT(), wintypes.POINT()
+        self.user32.GetWindowRect(self.hwnd, ctypes.byref(bounds))
+        self.user32.ClientToScreen(self.hwnd, ctypes.byref(origin))
+        return origin.y - bounds.top
 
     def _install_frame(self):
         self.user32 = ctypes.WinDLL('user32', use_last_error=True)
@@ -173,6 +237,8 @@ class WindowChrome:
         self.user32.IsZoomed.argtypes = [wintypes.HWND]
         self.user32.GetDpiForWindow.argtypes = [wintypes.HWND]
         self.user32.GetDpiForWindow.restype = wintypes.UINT
+        self.user32.GetSystemMetricsForDpi.argtypes = [ctypes.c_int, wintypes.UINT]
+        self.user32.GetSystemMetricsForDpi.restype = ctypes.c_int
         self.user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
         self.user32.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR]
         self.user32.FindWindowW.restype = wintypes.HWND
@@ -180,12 +246,14 @@ class WindowChrome:
 
         def frame(hwnd, message, wparam, lparam, *_):
             try:
-                if message == 0x83 and wparam:  # WM_NCCALCSIZE: retain the system resize frame.
+                if message == 0x83 and wparam:  # WM_NCCALCSIZE: no leftover native caption strip.
                     rect = ctypes.cast(lparam, ctypes.POINTER(wintypes.RECT)).contents
-                    original_top, original_left = rect.top, rect.left
-                    result = self.comctl.DefSubclassProc(hwnd, message, wparam, lparam)
-                    rect.top = original_top + rect.left - original_left
-                    return result
+                    dpi = self.user32.GetDpiForWindow(hwnd) or 96
+                    padding = self.user32.GetSystemMetricsForDpi(92, dpi)
+                    bounds = frame_client_bounds((rect.left, rect.top, rect.right, rect.bottom), bool(self.user32.IsZoomed(hwnd)),
+                        self.user32.GetSystemMetricsForDpi(32, dpi) + padding, self.user32.GetSystemMetricsForDpi(33, dpi) + padding)
+                    rect.left, rect.top, rect.right, rect.bottom = bounds
+                    return 0
                 if message == 0x84:  # WM_NCHITTEST, signed screen coordinates (negative monitors included).
                     rect = wintypes.RECT()
                     self.user32.GetWindowRect(hwnd, ctypes.byref(rect))
@@ -201,19 +269,15 @@ class WindowChrome:
             return self.comctl.DefSubclassProc(hwnd, message, wparam, lparam)
 
         def transparent(hwnd, message, wparam, lparam, *_):
-            return -1 if message == 0x84 else self.comctl.DefSubclassProc(hwnd, message, wparam, lparam)
-
-        def maximize(hwnd, message, wparam, lparam, *_):
             if message == 0x84:
-                return 9  # HTMAXBUTTON enables the Windows 11 Snap layout menu.
-            if message == 0xA1:
-                return 0
-            if message == 0xA2:
-                self._maximize()
-                return 0
+                from System.Drawing import Point
+                point = self.caption.PointToClient(Point(ctypes.c_short(lparam & 0xFFFF).value, ctypes.c_short((lparam >> 16) & 0xFFFF).value))
+                # A transparent parent must not make its interactive children
+                # disappear from Windows pointer hit testing.
+                return 1 if any(button.Bounds.Contains(point) for button in self.buttons) else -1
             return self.comctl.DefSubclassProc(hwnd, message, wparam, lparam)
 
-        for control, handler in ((self.form, frame), (self.caption, transparent), (self.picture, transparent), (self.label, transparent), (self.buttons[1], maximize)):
+        for control, handler in ((self.form, frame), (self.caption, transparent), (self.picture, transparent), (self.label, transparent)):
             callback = callback_type(handler)
             hwnd = int(control.Handle.ToInt64())
             if not self.comctl.SetWindowSubclass(hwnd, callback, 1, 0):
@@ -240,12 +304,14 @@ class WindowChrome:
         hover = ColorTranslator.FromHtml(colors['soft'])
         if SystemInformation.HighContrast:
             background, foreground, hover = SystemColors.Window, SystemColors.WindowText, SystemColors.Highlight
+        self._foreground = foreground
         self.form.BackColor = self.caption.BackColor = background
         self.label.ForeColor = foreground
         for index, button in enumerate(self.buttons):
             button.BackColor, button.ForeColor = background, foreground
             button.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml(colors['danger-bg']) if index == 2 else hover
             button.FlatAppearance.MouseDownBackColor = hover
+            button.Invalidate()
         if self.menu:
             self.menu.Font = self._font
             self.menu.BackColor, self.menu.ForeColor = background, foreground
@@ -281,4 +347,3 @@ class WindowChrome:
         self._bitmap.Dispose()
         self._icon.Dispose()
         self._font.Dispose()
-        self._glyph_font.Dispose()

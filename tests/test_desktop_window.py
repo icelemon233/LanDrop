@@ -10,7 +10,7 @@ from landrop.desktop_window import DesktopWindow, is_window_url
 from landrop.errors import AppError
 from landrop.state import State
 from landrop.window_runtime import valid_runtime_version
-from landrop.window_chrome import caption_hit
+from landrop.window_chrome import caption_hit, frame_client_bounds
 
 
 class DesktopWindowTests(unittest.TestCase):
@@ -124,8 +124,18 @@ class DesktopWindowTests(unittest.TestCase):
                 self.assertEqual(caption_hit(width - 1, height - 1, width, height, scale, False), 17)
                 self.assertEqual(caption_hit(round(100 * scale), round(20 * scale), width, height, scale, False), 2)
                 self.assertIsNone(caption_hit(round(200 * scale), round(100 * scale), width, height, scale, False))
-                self.assertIsNone(caption_hit(width - round(100 * scale), round(20 * scale), width, height, scale, False))
+                self.assertEqual(caption_hit(width - round(100 * scale), round(20 * scale), width, height, scale, False), 1)
                 self.assertEqual(caption_hit(1, 1, width, height, scale, True), 3)
+
+    def test_all_caption_buttons_keep_client_mouse_routing_at_each_dpi(self):
+        for scale in (1, 1.25, 1.5, 2):
+            width, height = round(1180 * scale), round(780 * scale)
+            for distance in (23, 69, 115):
+                self.assertEqual(caption_hit(width - round(distance * scale), round(20 * scale), width, height, scale, False), 1)
+
+    def test_custom_frame_has_no_normal_top_strip_and_maximized_content_stays_on_screen(self):
+        self.assertEqual(frame_client_bounds((100, 100, 1280, 880), False, 16, 16), (100, 100, 1280, 880))
+        self.assertEqual(frame_client_bounds((-16, -16, 3856, 2176), True, 16, 16), (0, 0, 3840, 2160))
 
     def test_explicit_exit_cancels_owned_transfers_and_signals_service_cleanup(self):
         self.state.active_downloads = 1
