@@ -166,6 +166,8 @@ function GetTickCount64: UInt64;
   external 'GetTickCount64@kernel32.dll stdcall';
 function GetWindowThreadProcessId(Window: HWND; var ProcessId: LongWord): LongWord;
   external 'GetWindowThreadProcessId@user32.dll stdcall';
+function FindWindowExW(Parent, After: HWND; ClassName: NativeUInt; Title: String): HWND;
+  external 'FindWindowExW@user32.dll stdcall';
 function RegisterWindowMessageW(Name: String): LongWord;
   external 'RegisterWindowMessageW@user32.dll stdcall';
 function SendMessageTimeoutW(Window: HWND; Msg: LongWord; WParam: NativeUInt; LParam: NativeInt; Flags, Timeout: LongWord; var MessageResult: NativeUInt): NativeUInt;
@@ -286,7 +288,8 @@ begin
     Result := '请输入本机磁盘中的完整应用目录，例如 D:\Apps\{#ProductName}。'; exit;
   end;
   for I := 1 to Length(Dir) do
-    if (Ord(Dir[I]) < 32) or (Pos(Dir[I], '"<>|?*') > 0) or ((Dir[I] = ':') and (I <> 2)) then begin
+    if (Ord(Dir[I]) < 32) or (Pos(Copy(Dir, I, 1), '"<>|?*') > 0) or ((Dir[I] = ':') and (I <> 2)) then begin
+      Log(Format('Invalid path character at %d (Unicode %d)', [I, Ord(Dir[I])]));
       Result := '安装路径包含无效字符，请选择单独的应用文件夹。'; exit;
     end;
   Dir := RemoveBackslashUnlessRoot(ExpandFileName(Dir));
@@ -429,18 +432,21 @@ begin
       3: Title := 'cinna-fanCon · 智能散热';
     end;
 #endif
-    Window := FindWindowByWindowName(Title);
-    if Window <> 0 then begin
+    Window := 0;
+    repeat
+      Window := FindWindowExW(0, Window, 0, Title);
+      if Window = 0 then break;
       GetWindowThreadProcessId(Window, ProcessId);
       Process := OpenProcess($1000, False, ProcessId);
       if Process <> 0 then try
         Size := 32768; SetLength(Image, Size);
         if QueryFullProcessImageNameW(Process, 0, Image, Size) then begin
           SetLength(Image, Size);
+          Log('Maintenance window process: ' + Image + '; expected ' + ExpandConstant('{app}'));
           if SamePath(Image, ExpandConstant('{app}\FanController.exe')) or SamePath(Image, ExpandConstant('{app}\cinna-fanCon.exe')) then begin Result := Window; exit; end;
-        end;
+        end else Log(Format('Cannot read maintenance process path: %d', [GetLastError]));
       finally CloseHandle(Process); end;
-    end;
+    until False;
   end;
 end;
 

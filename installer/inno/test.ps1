@@ -27,7 +27,10 @@ $qaChecks = [Collections.Generic.List[string]]::new()
 function Invoke-QaInstaller([string]$File,[string[]]$Arguments,[bool]$Success=$true){
   $qaProcess = Start-Process -FilePath $File -ArgumentList $Arguments -WindowStyle Hidden -PassThru
   if(-not $qaProcess.WaitForExit(90000)){throw "QA installer timed out. Inspect $qaRoot before retrying."}
-  if($Success -and $qaProcess.ExitCode -ne 0){throw "Installer exited with $($qaProcess.ExitCode); inspect logs under $qaRoot"}
+  if($Success -and $qaProcess.ExitCode -ne 0){
+    foreach($qaFailureLog in @(Get-ChildItem -LiteralPath $qaRoot -File -Filter '*.log' | Sort-Object LastWriteTime -Descending | Select-Object -First 1)){Get-Content -LiteralPath $qaFailureLog.FullName -Tail 65 | Write-Host}
+    throw "Installer exited with $($qaProcess.ExitCode); inspect logs under $qaRoot"
+  }
   if(-not $Success -and $qaProcess.ExitCode -eq 0){throw 'Installer should have refused the unsafe operation.'}
   if($Success -and [IO.Path]::GetFileName($File) -like 'unins*.exe'){
     # Inno's original uninstaller can exit while its temporary copy completes cleanup.
