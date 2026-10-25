@@ -26,7 +26,3 @@ jobs:
       - name: Test custom native interface and upgrade recovery
         shell: pwsh
         run: ./installer/inno/test-custom.ps1 -PayloadDirectory build/inno-payload -Version ((Get-Content landrop/version.json -Raw | ConvertFrom-Json).version)
-      - uses: actions/upload-artifact@v4
-        with:
-          name: LanDrop-Windows-x64
-          path: dist/*.exe

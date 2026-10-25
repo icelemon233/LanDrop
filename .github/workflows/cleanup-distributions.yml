@@ -1,0 +1,27 @@
+name: Clean obsolete CI installation packages
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cleanup-distributions.yml
+      - scripts/cleanup-ci-packages.ps1
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: clean-ci-installation-packages
+  cancel-in-progress: false
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Retain the verified release and remove duplicate CI packages
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/cleanup-ci-packages.ps1
