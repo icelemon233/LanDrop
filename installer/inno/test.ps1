@@ -107,12 +107,14 @@ $qaLegacyUninstaller = Join-Path $qaApplication $qaProduct.LegacyFiles[0]
 if($qaProduct.Kind -eq 'landrop'){
   $qaOldLink = Join-Path $qaRoot ('shortcuts\start\'+$qaProduct.Name+'\卸载.lnk')
   New-Item -ItemType Directory -Path (Split-Path -Parent $qaOldLink) -Force | Out-Null
+  $qaOldAsciiLink = Join-Path (Split-Path -Parent $qaOldLink) 'legacy-uninstall.lnk'
   $qaOldShell = New-Object -ComObject WScript.Shell
-  $qaOldShortcut = $qaOldShell.CreateShortcut($qaOldLink)
+  $qaOldShortcut = $qaOldShell.CreateShortcut($qaOldAsciiLink)
   $qaOldShortcut.TargetPath = Join-Path $env:WINDIR 'System32\notepad.exe'
   $qaOldShortcut.Save()
   [Runtime.InteropServices.Marshal]::FinalReleaseComObject($qaOldShortcut) | Out-Null
   [Runtime.InteropServices.Marshal]::FinalReleaseComObject($qaOldShell) | Out-Null
+  [IO.File]::Move($qaOldAsciiLink,$qaOldLink)
   # WScript's target property uses the system code page. Shell's link object
   # preserves the full Unicode target when creating this legacy fixture.
   $qaOldShell = New-Object -ComObject Shell.Application
