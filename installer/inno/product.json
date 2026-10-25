@@ -1,0 +1,21 @@
+{
+  "Name": "LanDrop",
+  "Description": "在局域网内与手机互传文件",
+  "Kind": "landrop",
+  "Id": "LanDrop.Cinna",
+  "Executable": "LanDrop.exe",
+  "UserFolder": "LanDrop",
+  "AppUserModelId": "Cinna.LanDrop",
+  "MinimumWindows": "10.0.10240",
+  "Icon": "resources/app.ico",
+  "BrandImage": "frontend/assets/cinna-icon.png",
+  "ShortcutIcon": "app.ico",
+  "Bootstrapper": "build/tools/MicrosoftEdgeWebview2Setup.exe",
+  "DataDirectory": "{localappdata}\\LanDrop",
+  "LegacyKey": "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\LanDrop.Cinna",
+  "InstallingMutex": "Local\\LanDrop.Cinna.Installing",
+  "RunningMutex": "Local\\LanDrop.Cinna.Running",
+  "WelcomeText": "在同一局域网内与手机互传文件。电脑使用独立窗口，手机扫码后通过浏览器连接。%n%n需要 Windows 10/11 x64；缺少 WebView2 时会联网安装。无需另装 Python。",
+  "ClosePrompt": "LanDrop 正在运行。继续后会正常退出，未完成的传输会中断。已经保存的文件和共享设置会保留。取消可继续使用当前版本。",
+  "LegacyFiles": ["Uninstall.exe", "隔空传.exe"]
+}

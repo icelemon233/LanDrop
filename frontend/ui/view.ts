@@ -5,17 +5,23 @@ import { escape as e, element, html, size, date } from './dom.js';
 import { renderFiles } from '../features/files.js';
 import type { Preferences } from './preferences.js';
 import { renderSettings } from './settings.js';
+import { Sidebar } from './sidebar.js';
 
 export type ViewName = 'shared' | 'received' | 'activity' | 'settings';
 export class View {
   view: ViewName = 'shared'; query = ''; filter = 'all';
   private role = '';
   private pair = '';
+  private sidebar?: Sidebar;
+  togglePin(): void { this.sidebar?.togglePin(); }
+  toggleDrawer(): void { this.sidebar?.toggleDrawer(); }
+  closeDrawer(): void { this.sidebar?.closeDrawer(false); }
+  dispose(): void { this.sidebar?.dispose(); }
   constructor(private preferences: Preferences, private root = element('#app')) {}
   render(connection: Connection): void {
     const state = connection.snapshot;
     if (!state) {
-      this.role = '';
+      this.role = ''; this.sidebar?.dispose(); this.sidebar = undefined;
       const desktop = document.body.dataset.client === 'desktop' || new URLSearchParams(location.hash.slice(1)).has('admin');
       const heading = connection.phase === 'starting' ? '正在连接电脑' : connection.phase === 'stopped' ? '正在退出 LanDrop' : desktop ? '重新打开电脑端' : '连接电脑';
       html(this.root, `<main class="locked-screen"><img src="/assets/cinna-icon.png" alt="LanDrop图标" width="88" height="88" /><h1>${heading}</h1><p>${e(connection.phase === 'stopped' ? '可以关闭此页面。下次双击程序继续使用。' : connection.phase === 'starting' ? '正在读取文件和连接状态…' : connection.error)}</p>${connection.phase !== 'starting' && connection.phase !== 'stopped' ? `<div class="locked-steps">${desktop ? `<span>${icon('computer')}关闭报错页面，重新双击新版 LanDrop 程序。</span>` : `<span>${icon('wifi')}手机和电脑连接同一个 Wi-Fi。</span><span>${icon('phone')}扫描电脑上的二维码，用浏览器打开。</span>`}</div><button class="button primary" data-action="retry">重试连接</button><button class="text-button" data-action="help">使用帮助</button>` : ''}</main>`);
@@ -25,11 +31,8 @@ export class View {
     const admin = state.role === 'admin';
     if (!admin && this.view !== 'settings') this.view = 'shared';
     const settings = this.view === 'settings';
-    this.root.querySelector('.app-shell')?.classList.toggle('sidebar-collapsed', this.preferences.collapsed);
-    const toggle = element('#sidebar-toggle');
-    toggle.setAttribute('aria-expanded', String(!this.preferences.collapsed));
-    toggle.setAttribute('aria-label', this.preferences.collapsed ? '展开侧栏' : '收起侧栏');
-    toggle.title = this.preferences.collapsed ? '展开侧栏' : '收起侧栏';
+    this.sidebar?.refresh();
+    element('#page-actions').hidden = settings || (this.view !== 'shared' && this.view !== 'activity');
     element('#file-content').hidden = settings;
     element('#settings-page').hidden = !settings;
     element('#connection-panel').hidden = settings;
@@ -38,12 +41,12 @@ export class View {
     if (settings) renderSettings(element('#settings-page'), state, this.preferences);
     const titles = { shared: admin ? '发送文件' : '电脑文件', received: '收到的文件', activity: '传输记录', settings: '设置' };
     element('#page-title').textContent = titles[this.view];
+    element('#mobile-page-title').textContent = titles[this.view];
 
     element('#page-note').textContent = admin ? (this.view === 'activity' ? '仅保留本次运行的传输记录。' : '') : settings ? '' : `来自${this.preferences.private ? '电脑' : ' ' + state.computer}`;
     element('#page-note').hidden = !element('#page-note').textContent;
     element('#computer-name').textContent = this.preferences.private ? '此电脑' : state.computer;
     element('#nav-count').textContent = String(state.files.length);
-    element('#version').textContent = `v${state.version}`;
     element('#add-button').hidden = this.view !== 'shared';
     element<HTMLButtonElement>('#add-button').disabled = admin && Boolean(state.settingsStatus?.protected);
     element('#drop-zone').hidden = !admin || this.view !== 'shared';
@@ -55,7 +58,7 @@ export class View {
     const banner = connection.phase === 'reconnecting' ? connection.error : state.warning || (admin && !state.addresses?.length ? '没有检测到局域网地址。请连接 Wi-Fi 后重新打开程序。' : '');
     const warning = element('#network-banner'); warning.hidden = !banner;
     html(warning, `${e(banner)}${state.settingsStatus?.protected ? ' <button class="text-button" data-action="recover-settings">备份并恢复设置</button>' : ''}`);
-    const test = element('#test-banner'); test.hidden = !state.testMode; test.textContent = '测试模式：使用合成文件，APK 仅供传输验证。';
+    const test = element('#test-banner'); test.hidden = !state.testMode || settings; test.textContent = '测试模式：使用合成文件，APK 仅供传输验证。';
     const offline = connection.phase !== 'connected';
     const online = (state.devices ?? []).filter(device => Date.now()/1000 - device.seen < 18).length;
     html(element('#connection-status'), `<i class="${offline ? 'offline' : ''}"></i>${offline ? '连接中断' : admin ? (online ? `${online} 台设备在线` : '等待手机连接') : '已连接电脑'}`);
@@ -76,9 +79,11 @@ export class View {
     if (admin) this.renderComputer(state);
   }
   private shell(state: Snapshot): void {
+    this.sidebar?.dispose();
     const admin = state.role === 'admin'; this.pair = '';
-    html(this.root, `<div class="app-shell ${admin ? 'role-admin' : 'role-phone'}"><button class="sidebar-backdrop" data-action="toggle-sidebar" aria-label="收起侧栏"></button><aside class="sidebar" id="sidebar"><div class="sidebar-heading"><a class="brand" href="${admin ? '/desktop' : '/'}"><img src="/assets/cinna-icon.png" alt="LanDrop图标" width="46" height="46" /><span>LanDrop</span></a><button class="icon-button" id="sidebar-toggle" data-action="toggle-sidebar" aria-controls="sidebar" aria-label="收起侧栏">${icon('panel')}</button></div><nav class="nav" aria-label="主导航"><button class="nav-item" data-action="view" data-view="shared" title="发送文件" aria-label="发送文件">${icon('send')}<span>发送文件</span><b id="nav-count">0</b></button><button class="nav-item" data-action="view" data-view="received" title="收到的文件" aria-label="收到的文件">${icon('inbox')}<span>收到的文件</span></button><button class="nav-item" data-action="view" data-view="activity" title="传输记录" aria-label="传输记录">${icon('history')}<span>传输记录</span></button></nav><p class="sidebar-note">${icon('wifi')}手机和电脑需要连接同一个 Wi-Fi。</p><div class="sidebar-bottom"><div class="local-device">${icon('computer')}<strong id="computer-name"></strong></div><button class="quiet-button" data-action="help" title="使用帮助" aria-label="使用帮助">${icon('help')}<span>使用帮助</span></button><button class="quiet-button" data-action="shutdown" title="退出应用" aria-label="退出应用">${icon('power')}<span>退出应用</span></button><button class="quiet-button nav-item" data-action="view" data-view="settings" title="设置" aria-label="设置">${icon('settings')}<span>设置</span></button><small id="version"></small></div></aside><div class="workspace"><header class="topbar"><button class="icon-button sidebar-menu" data-action="toggle-sidebar" aria-label="展开侧栏" aria-controls="sidebar">${icon('menu')}</button><button class="icon-button" id="phone-back" data-action="view" data-view="shared" aria-label="返回文件" hidden>${icon('back')}</button><span class="mobile-brand"><img src="/assets/cinna-icon.png" alt="" width="32" height="32" />LanDrop</span><div class="top-actions"><span class="connection-status" id="connection-status"></span><button class="icon-button" id="privacy-button" data-action="privacy" aria-label="隐藏连接信息">${icon('eye')}</button><button class="icon-button phone-settings" data-action="view" data-view="settings" aria-label="设置">${icon('settings')}</button></div></header><div class="network-banner" id="network-banner" role="status" hidden></div><div class="test-banner" id="test-banner" hidden></div><div class="content-grid" id="content-grid"><main class="primary-column"><div class="page-heading"><div><h1 id="page-title">发送文件</h1><p id="page-note" hidden></p></div><button class="button primary" data-action="add-files" id="add-button">${icon(admin ? 'plus' : 'upload')}${admin ? '添加文件' : '发送文件到电脑'}</button></div><div id="settings-page" class="settings-page" hidden></div><div id="file-content"><section class="drop-zone" id="drop-zone" aria-label="拖入要共享的文件"><span class="drop-icon">${icon('upload')}</span><div><strong>拖入文件</strong><p>支持安装包、图片、文档；单个上传文件最大 8 GB。</p></div></section><section class="file-section" aria-labelledby="list-title"><div class="section-heading"><h2 id="list-title">共享文件</h2><button class="text-button" data-action="refresh">${icon('refresh')}刷新</button></div><div class="list-tools" id="list-tools"><div class="tabs" aria-label="文件类型"><button data-action="filter" data-filter="all" class="tab">全部</button><button data-action="filter" data-filter="apk" class="tab">安装包</button></div><label class="search">${icon('search')}<input id="search-input" type="search" placeholder="搜索文件" aria-label="搜索文件" autocomplete="off" /></label></div><div id="files" class="files"></div></section><section id="folders-section" class="folders-section"><div class="section-heading"><h2>安装包文件夹</h2><button class="text-button" data-action="add-folder">${icon('plus')}添加文件夹</button></div><div id="folders"></div><p class="footnote">自动共享 APK、AAB、APKS 和 XAPK，包含子文件夹。</p></section><div id="received-path" class="received-path" hidden></div></div></main><aside class="connection-panel" id="connection-panel"><div class="pair-card"><div class="section-heading"><h2>扫码连接手机</h2>${icon('phone')}</div><div id="pair-content"></div></div><section class="devices-card"><h2>已连接设备 <span class="count" id="device-count">0</span></h2><div id="devices"></div></section><button class="text-button connection-help" data-action="help">连接帮助 ${icon('arrow')}</button></aside></div><footer class="workspace-footer"><span>${icon('wifi')}局域网传输</span><span>电脑程序需要保持运行。</span><span id="transfer-summary"></span></footer></div></div>`);
+    html(this.root, `<div class="app-shell ${admin ? 'role-admin' : 'role-phone'}"><button class="sidebar-backdrop" data-action="close-sidebar" aria-label="关闭侧栏"></button><aside class="sidebar" id="sidebar"><nav class="nav" aria-label="主导航"><button class="nav-item" data-action="view" data-view="shared" title="发送文件" aria-label="发送文件">${icon('send')}<span>发送文件</span><b id="nav-count">0</b></button><button class="nav-item" data-action="view" data-view="received" title="收到的文件" aria-label="收到的文件">${icon('inbox')}<span>收到的文件</span></button><button class="nav-item" data-action="view" data-view="activity" title="传输记录" aria-label="传输记录">${icon('history')}<span>传输记录</span></button></nav><p class="sidebar-note">${icon('wifi')}手机和电脑需要连接同一个 Wi-Fi。</p><div class="sidebar-bottom"><div class="local-device">${icon('computer')}<strong id="computer-name"></strong></div><button class="quiet-button" data-action="help" title="使用帮助" aria-label="使用帮助">${icon('help')}<span>使用帮助</span></button><button class="quiet-button" data-action="shutdown" title="退出应用" aria-label="退出应用">${icon('power')}<span>退出应用</span></button></div><div class="sidebar-footer"><button class="nav-item settings-nav" data-action="view" data-view="settings" title="设置" aria-label="设置">${icon('settings')}<span>设置</span></button><button class="icon-button pin-toggle" id="sidebar-pin" data-action="toggle-pin" aria-label="取消固定侧栏" aria-pressed="true">${icon('pin-off')}</button></div></aside><div class="workspace"><header class="topbar"><div class="toolbar-leading"><button class="icon-button sidebar-menu" data-action="toggle-sidebar" aria-label="展开侧栏" aria-controls="sidebar" aria-expanded="false">${icon('panel')}</button><h1 class="toolbar-title" id="page-title">发送文件</h1></div><button class="icon-button" id="phone-back" data-action="view" data-view="shared" aria-label="返回文件" hidden>${icon('back')}</button><span class="mobile-brand"><img src="/assets/cinna-icon.png" alt="" width="32" height="32" />LanDrop</span><div class="top-actions"><span class="connection-status" id="connection-status"></span><button class="icon-button" id="privacy-button" data-action="privacy" aria-label="隐藏连接信息">${icon('eye')}</button><button class="icon-button phone-settings" data-action="view" data-view="settings" aria-label="设置">${icon('settings')}</button></div></header><div class="network-banner" id="network-banner" role="status" hidden></div><div class="test-banner" id="test-banner" hidden></div><div class="content-grid" id="content-grid"><main class="primary-column"><h1 class="mobile-page-title" id="mobile-page-title">发送文件</h1><div class="page-heading" id="page-actions"><p id="page-note" hidden></p><button class="button primary" data-action="add-files" id="add-button">${icon(admin ? 'plus' : 'upload')}${admin ? '添加文件' : '发送文件到电脑'}</button></div><div id="settings-page" class="settings-page" hidden></div><div id="file-content"><section class="drop-zone" id="drop-zone" aria-label="拖入要共享的文件"><span class="drop-icon">${icon('upload')}</span><div><strong>拖入文件</strong><p>支持安装包、图片、文档；单个上传文件最大 8 GB。</p></div></section><section class="file-section" aria-labelledby="list-title"><div class="section-heading"><h2 id="list-title">共享文件</h2><button class="text-button" data-action="refresh">${icon('refresh')}刷新</button></div><div class="list-tools" id="list-tools"><div class="tabs" aria-label="文件类型"><button data-action="filter" data-filter="all" class="tab">全部</button><button data-action="filter" data-filter="apk" class="tab">安装包</button></div><label class="search">${icon('search')}<input id="search-input" type="search" placeholder="搜索文件" aria-label="搜索文件" autocomplete="off" /></label></div><div id="files" class="files"></div></section><section id="folders-section" class="folders-section"><div class="section-heading"><h2>安装包文件夹</h2><button class="text-button" data-action="add-folder">${icon('plus')}添加文件夹</button></div><div id="folders"></div><p class="footnote">自动共享 APK、AAB、APKS 和 XAPK，包含子文件夹。</p></section><div id="received-path" class="received-path" hidden></div></div></main><aside class="connection-panel" id="connection-panel"><div class="pair-card"><div class="section-heading"><h2>扫码连接手机</h2>${icon('phone')}</div><div id="pair-content"></div></div><section class="devices-card"><h2>已连接设备 <span class="count" id="device-count">0</span></h2><div id="devices"></div></section><button class="text-button connection-help" data-action="help">连接帮助 ${icon('arrow')}</button></aside></div><footer class="workspace-footer"><span>${icon('wifi')}局域网传输</span><span>电脑程序需要保持运行。</span><span id="transfer-summary"></span></footer></div></div>`);
     element<HTMLInputElement>('#search-input').value = this.query;
+    this.sidebar = new Sidebar(this.root.querySelector<HTMLElement>('.app-shell')!, this.preferences);
   }
   private renderComputer(state: Snapshot): void {
     const hidden = this.preferences.private;

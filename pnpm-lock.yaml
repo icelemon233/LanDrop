@@ -8,11 +8,17 @@ importers:
 
   .:
     devDependencies:
+      lucide-static:
+        specifier: 1.61.0
+        version: 1.61.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3
 
 packages:
+
+  lucide-static@1.61.0:
+    resolution: {integrity: sha512-yLAiQB3MWUJEstsEDAwenSA3m7vr1tdLvgnC16Q/XMxRRma0DWwMs8M2bWlvgShrIs1m2mWMJ+0AiahqQO4GrA==}
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -20,5 +26,7 @@ packages:
     hasBin: true
 
 snapshots:
+
+  lucide-static@1.61.0: {}
 
   typescript@5.9.3: {}

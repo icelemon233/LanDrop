@@ -1,73 +1,37 @@
-"""Build a current-user NSIS installer from the pinned, verified compiler archive."""
+"""Build the branded Inno Setup installer from the verified portable payload."""
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import shutil
 import subprocess
-import zipfile
-import os
-from urllib.request import urlretrieve
 from pathlib import Path
+from source_manifest import runtime_manifest
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
-parser.add_argument('--nsis-archive', type=Path, required=True, help='Official nsis-3.13.zip')
+parser.add_argument('--compiler', type=Path, help='Pinned Inno Setup 7.1.0 ISCC.exe')
 parser.add_argument('--output', type=Path)
-parser.add_argument('--qa-state', type=Path, help='Isolated installer test only')
-parser.add_argument('--qa-id', default='')
+parser.add_argument('--qa-root', type=Path, help='Fresh .local/inno-qa-<GUID> directory')
 parser.add_argument('--webview-bootstrapper', type=Path)
 args = parser.parse_args()
 version = json.loads((root / 'landrop/version.json').read_text('utf-8'))['version']
-project = json.loads((root / 'project.json').read_text('utf-8'))
-expected = 'ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8'
-archive = args.nsis_archive.resolve(strict=True)
-with archive.open('rb') as stream:
-    if hashlib.file_digest(stream, 'sha256').hexdigest() != expected:
-        raise SystemExit('NSIS 3.13 archive checksum mismatch.')
-tool_dir = root / 'build/tools'
-tool_dir.mkdir(parents=True, exist_ok=True)
-with zipfile.ZipFile(archive) as source:
-    for member in source.infolist():
-        if not (tool_dir / member.filename).resolve().is_relative_to(tool_dir.resolve()):
-            raise SystemExit('Unexpected compiler archive path.')
-    for member in source.infolist():
-        target=tool_dir/member.filename
-        if member.is_dir():
-            target.mkdir(parents=True,exist_ok=True)
-        elif not target.is_file() or hashlib.sha256(target.read_bytes()).digest()!=hashlib.sha256(source.read(member)).digest():
-            source.extract(member,tool_dir)
-compiler = tool_dir / 'nsis-3.13/makensis.exe'
-prerequisite = json.loads((root / 'resources/webview2-bootstrapper.json').read_text('utf-8'))
-bootstrapper = (args.webview_bootstrapper or tool_dir / prerequisite['name']).resolve()
-if not bootstrapper.exists():
-    bootstrapper.parent.mkdir(parents=True, exist_ok=True)
-    urlretrieve(prerequisite['url'], bootstrapper)
-if bootstrapper.stat().st_size != prerequisite['bytes'] or hashlib.sha256(bootstrapper.read_bytes()).hexdigest() != prerequisite['sha256']:
-    raise SystemExit('WebView2 bootstrapper changed; verify its Microsoft source/signature before updating the pinned manifest.')
-signature = subprocess.run(['powershell', '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; $env:PSModulePath=Join-Path $PSHOME 'Modules'; $s=Get-AuthenticodeSignature -LiteralPath $env:LANDROP_BOOTSTRAPPER; if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation'){exit 1}"], env={**os.environ, 'LANDROP_BOOTSTRAPPER': str(bootstrapper)}, capture_output=True)
-if signature.returncode:
-    raise SystemExit('WebView2 bootstrapper Microsoft signature verification failed.')
-payload = root / 'build/installer-payload'
+manifest = json.loads((root / 'build/build-manifest.json').read_text('utf-8'))
+if manifest['version'] != version or manifest['runtimeSources'] != runtime_manifest(root):
+    raise SystemExit('The application sources changed. Rebuild LanDrop.exe before packaging.')
+payload = root / 'build/inno-payload'
 payload.mkdir(parents=True, exist_ok=True)
-shutil.copy2(root / 'dist/LanDrop.exe', payload / 'LanDrop.exe')
-shutil.copy2(root / 'resources/app.ico', payload / 'app.ico')
-shutil.copy2(root / 'docs/使用说明.txt', payload / '使用说明.txt')
-shutil.copy2(root / 'THIRD_PARTY_NOTICES.txt', payload / 'THIRD_PARTY_NOTICES.txt')
-output = (args.output or root / f'dist/LanDrop-v{version}-windows-x64-setup.exe').resolve()
-output.parent.mkdir(parents=True, exist_ok=True)
-size = sum(path.stat().st_size for path in payload.iterdir())
-command = [str(compiler), '/V2', '/INPUTCHARSET', 'UTF8', f'/DProjectRoot={root}', f'/DAppVersion={version}', f'/DDeveloper={project["developer"]}', f'/DPayload={payload}', f'/DOutputFile={output}', f'/DInstalledSizeKB={(size + 1023) // 1024}']
-command.append(f'/DWebViewBootstrapper={bootstrapper}')
-if args.qa_state:
-    if not args.qa_id or not args.qa_id.isalnum():
-        raise SystemExit('QA build needs an alphanumeric --qa-id.')
-    state = args.qa_state.resolve()
-    if not state.is_relative_to(root.parent.resolve()):
-        raise SystemExit('QA data must stay inside the task work directory.')
-    data_args = '--state-dir $\\"' + str(state).replace('$', '$$') + '$\\"'
-    command.extend([f'/DAppKey=LanDrop.Cinna.QA.{args.qa_id}', f'/DShortcutName=LanDrop QA {args.qa_id}', f'/DLegacyShortcutName=隔空传 QA {args.qa_id}', f'/DDataArgs={data_args}'])
-command.append(str(root / 'installer/setup.nsi'))
+for source, name in (
+    (root / 'dist/LanDrop.exe', 'LanDrop.exe'),
+    (root / 'resources/app.ico', 'app.ico'),
+    (root / 'docs/使用说明.txt', '使用说明.txt'),
+    (root / 'THIRD_PARTY_NOTICES.txt', 'THIRD_PARTY_NOTICES.txt'),
+):
+    shutil.copy2(source, payload / name)
+output = args.output or (args.qa_root / 'LanDrop-inno-qa.exe' if args.qa_root else root / f'dist/LanDrop-v{version}-windows-x64-setup.exe')
+command = ['pwsh', '-NoProfile', '-File', str(root / 'installer/inno/build.ps1'),
+           '-PayloadDirectory', str(payload), '-Version', version, '-OutputFile', str(output.resolve())]
+for name, value in (('-CompilerPath', args.compiler), ('-QaRoot', args.qa_root), ('-WebViewBootstrapper', args.webview_bootstrapper)):
+    if value:
+        command.extend((name, str(value.resolve())))
 subprocess.run(command, check=True, cwd=root)
-print(output)

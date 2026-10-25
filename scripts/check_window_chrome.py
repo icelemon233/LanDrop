@@ -100,7 +100,7 @@ def run():
             point = button.PointToScreen(Point(button.Width // 2, button.Height // 2))
             packed = (point.X & 0xFFFF) | ((point.Y & 0xFFFF) << 16)
             hits = [int(user32.SendMessageW(handle, 0x84, 0, packed)) for handle in (hwnd, int(chrome.caption.Handle.ToInt64()), int(button.Handle.ToInt64()))]
-            assert hits == [1, 1, 1], (button.AccessibleName, hits)
+            assert hits == ([9, -1, -1] if button == chrome.buttons[1] else [1, 1, 1]), (button.AccessibleName, hits)
             hit_results.append({'button': button.AccessibleName, 'framePanelButtonHits': hits})
 
         # These are managed control events, not injected physical mouse input.

@@ -127,11 +127,11 @@ class DesktopWindowTests(unittest.TestCase):
                 self.assertEqual(caption_hit(width - round(100 * scale), round(20 * scale), width, height, scale, False), 1)
                 self.assertEqual(caption_hit(1, 1, width, height, scale, True), 3)
 
-    def test_all_caption_buttons_keep_client_mouse_routing_at_each_dpi(self):
+    def test_caption_buttons_route_maximize_to_windows_and_other_clicks_to_controls_at_each_dpi(self):
         for scale in (1, 1.25, 1.5, 2):
             width, height = round(1180 * scale), round(780 * scale)
             for distance in (23, 69, 115):
-                self.assertEqual(caption_hit(width - round(distance * scale), round(20 * scale), width, height, scale, False), 1)
+                self.assertEqual(caption_hit(width - round(distance * scale), round(20 * scale), width, height, scale, False), 9 if distance == 69 else 1)
 
     def test_custom_frame_has_no_normal_top_strip_and_maximized_content_stays_on_screen(self):
         self.assertEqual(frame_client_bounds((100, 100, 1280, 880), False, 16, 16), (100, 100, 1280, 880))

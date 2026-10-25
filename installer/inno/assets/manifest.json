@@ -1,0 +1,32 @@
+{
+  "product": "LanDrop",
+  "kind": "landrop",
+  "edition": "2026-10",
+  "origin": "Cinna installer scenes, generated from the approved character and composition references",
+  "files": [
+    {
+      "path": "source-day.png",
+      "width": 1609,
+      "height": 977,
+      "sha256": "597a4fb41abd16b6cad33c36fcfa431ae321fa844aec75ec327f5edf7479cd41"
+    },
+    {
+      "path": "scene-day.jpg",
+      "width": 1609,
+      "height": 977,
+      "sha256": "10b1737278c86d8f1cad9765127c2ac94a74490d6ad4bd90aa8bd72d227d55d6"
+    },
+    {
+      "path": "source-night.png",
+      "width": 1610,
+      "height": 977,
+      "sha256": "92dc868122e9ea193752a082a5987931d1b8c330089fba1af07b419e23fac4e7"
+    },
+    {
+      "path": "scene-night.jpg",
+      "width": 1610,
+      "height": 977,
+      "sha256": "89aeaa1495077a759c79bff8c89dd078a790258dbac4d3c1a3929beff8795c4e"
+    }
+  ]
+}

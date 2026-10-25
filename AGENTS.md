@@ -15,5 +15,5 @@
 - 上传流式写入临时文件，完成后原子保存；取消与失败必须清理。原文件不会被移除共享操作删除。
 - 检查：pnpm check、pnpm build、pnpm test、python -m unittest discover -s tests -v。
 - 打包：python scripts/package.py（先完成前端构建）。构建产物、运行数据和测试数据不进入源码压缩包。
-- 安装器：scripts/build_installer.py 使用经哈希校验的 NSIS 3.13。安装测试必须使用独立 QA 注册项、快捷方式和数据目录。升级仅请求正常退出，不能强制结束旧程序；卸载保留用户数据和安装目录内非应用文件。
+- 安装器：scripts/build_installer.py 使用经哈希与发布者校验的 Inno Setup 7.1.0 与共用原生场景界面，位于 installer/inno；界面不依赖 WebView2 或 Python。摘要首页、设置抽屉、安装范围、路径、桌面与开始菜单快捷方式可用，取消安装为红色按钮，完成后按点击启动。公共脚本与原生桥保持三款同步，场景及产品配置独立。test.ps1 与 test-custom.ps1 使用独立 QA 注册项、快捷方式、数据目录和互斥锁。升级仅请求正常退出，不能强制结束旧程序；取消升级恢复旧程序，卸载保留用户数据和安装目录内非应用文件。
 - 版本只改 landrop/version.json。交付前比较 build/build-manifest.json 的源码摘要，记录 exe、安装器和源码包的 SHA-256。无 Git 仓库时不虚构 commit。

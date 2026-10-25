@@ -1,0 +1,68 @@
+name: Publish verified Windows release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verified-windows-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref_type == 'tag'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global --ignore-scripts pnpm@11.25.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and test application
+        shell: pwsh
+        run: |
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend dependencies failed' }
+          pnpm check
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend typecheck failed' }
+          pnpm test
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed' }
+          pnpm build
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
+          python -m pip install -r requirements-build.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Build dependencies failed' }
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { throw 'Python tests failed' }
+          python scripts/package.py
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged executable failed' }
+          python scripts/build_installer.py
+          if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }
+          ./scripts/ensure-ci-webview.ps1
+      - name: Validate isolated installation and recovery
+        shell: pwsh
+        run: |
+          $version = (Get-Content landrop/version.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag and application version differ' }
+          ./installer/inno/test.ps1 -PayloadDirectory build/inno-payload -Version $version
+          ./installer/inno/test-custom.ps1 -PayloadDirectory build/inno-payload -Version $version
+      - name: Publish and retain the latest version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content landrop/version.json -Raw | ConvertFrom-Json).version
+          $prefix = "dist/LanDrop-v$version-windows-x64"
+          Copy-Item -LiteralPath dist/LanDrop.exe -Destination "$prefix-portable.exe"
+          git archive --format=zip --prefix=LanDrop/ -o "dist/LanDrop-v$version-Source.zip" HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
+          $files = @("$prefix-setup.exe", "$prefix-setup.exe.sha256", "$prefix-setup.exe.build.json", "$prefix-portable.exe", "dist/LanDrop-v$version-Source.zip")
+          ./scripts/publish-verified-release.ps1 -Version $version -Title "LanDrop $version" -NotesFile "docs/releases/$version.md" -Files $files -KeepLatestOnly

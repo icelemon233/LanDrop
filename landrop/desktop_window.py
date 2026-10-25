@@ -45,21 +45,32 @@ class DesktopWindow:
         self.failure = None
         self._downloads = set()
         self.chrome = None
+        self.qa = {}
+        if state.test_mode:
+            try:
+                options = json.loads((state.data_dir / 'qa-window.json').read_text('utf-8'))
+                if isinstance(options, dict):
+                    self.qa = {key: value for key, value in options.items() if key in {'hidden', 'view'}}
+            except FileNotFoundError:
+                pass
+            except (OSError, ValueError):
+                logging.exception('Could not read isolated QA window options')
 
     def preferences(self):
         return {'closeBehavior': self.state.config.get('preferences', {}).get('windowCloseBehavior', 'tray'),
                 'trayAvailable': bool(self.chrome and self.chrome.available)}
 
     def prepare(self):
-        set_app_identity()
+        set_app_identity(self.state.test_mode)
         self.webview.settings['OPEN_EXTERNAL_LINKS_IN_BROWSER'] = False
         # Downloads use our owned dialog so maintenance cannot close the app
         # while a save picker is active. The renderer's default handler cancels
         # first; our handler enables only validated local downloads afterward.
         self.webview.settings['ALLOW_DOWNLOADS'] = False
         self.window = self.webview.create_window(
-            'LanDrop', self.state.admin_url, width=1180, height=780,
+            'LanDrop · UI QA' if self.qa else 'LanDrop', self.state.admin_url, width=1180, height=780,
             min_size=(800, 600), background_color=self._background(),
+            hidden=self.qa.get('hidden') is True, focus=self.qa.get('hidden') is not True,
         )
         self.window.events.before_show += self._configure_native
         self.window.events.loaded += self._loaded
@@ -97,14 +108,28 @@ class DesktopWindow:
             # Read-only, isolated test evidence; no GUI actions or credentials.
             try:
                 until = time.monotonic() + 20
+                qa_route_applied = False
                 while not self.closed and time.monotonic() < until:
-                    script = "JSON.stringify({phase:document.body.dataset.connectionPhase,role:document.body.dataset.role,title:document.title,width:innerWidth,height:innerHeight,theme:document.documentElement.dataset.theme,host:document.body.dataset.desktopHost,overflow:document.documentElement.scrollWidth>innerWidth})"
+                    script = """JSON.stringify({phase:document.body.dataset.connectionPhase,role:document.body.dataset.role,title:document.title,
+                      width:innerWidth,height:innerHeight,devicePixelRatio,visualViewportScale:visualViewport?.scale,
+                      theme:document.documentElement.dataset.theme,host:document.body.dataset.desktopHost,overflow:document.documentElement.scrollWidth>innerWidth,
+                      layout:Object.fromEntries(['.topbar','.sidebar','.workspace','.sidebar-footer','.settings-nav','#sidebar-pin','#page-title','#content-grid','#settings-page','.settings-page .select-trigger','.nav-item','.nav-item .icon','.settings-section h2'].map(selector=>{
+                        const node=document.querySelector(selector);if(!node)return[selector,null];const r=node.getBoundingClientRect(),s=getComputedStyle(node);
+                        return [selector,{x:r.x,y:r.y,width:r.width,height:r.height,fontSize:s.fontSize,fontWeight:s.fontWeight,display:s.display}];
+                      })),
+                      controls:[...document.querySelectorAll('.select-trigger')].map(node=>{const r=node.getBoundingClientRect();return {label:node.getAttribute('aria-labelledby'),x:r.x,y:r.y,width:r.width,height:r.height}})
+                    })"""
                     task = self._on_ui(lambda: self.window.native.webview.CoreWebView2.ExecuteScriptAsync(script))
                     task.Wait(5000)
                     if not task.IsCompleted:
                         continue
                     observation = json.loads(json.loads(str(task.Result)))
                     if observation.get('phase') == 'connected':
+                        if self.qa.get('view') == 'settings' and not qa_route_applied:
+                            task = self._on_ui(lambda: self.window.native.webview.CoreWebView2.ExecuteScriptAsync("history.replaceState(null,'',location.pathname+'?view=settings');dispatchEvent(new PopStateEvent('popstate'))"))
+                            task.Wait(5000)
+                            qa_route_applied = True
+                            continue
                         if self.chrome:
                             observation['native'] = self._on_ui(lambda: {
                                 'dpi': round(self.chrome.scale * 96),
@@ -119,8 +144,15 @@ class DesktopWindow:
                                 'windowWidth': self.window.native.Width,
                                 'captionButtons': [button.AccessibleName for button in self.chrome.buttons],
                                 'captionFontPoints': self.chrome.label.Font.SizeInPoints,
+                                'captionFontName': self.chrome.label.Font.Name,
+                                'captionFontRegular': not self.chrome.label.Font.Bold,
                                 'captionGlyphPixels': round(10 * self.chrome.scale),
                                 'clientTopInset': self.chrome.client_top_inset(),
+                                'webviewZoomFactor': self.window.native.webview.ZoomFactor,
+                                'layout': self.chrome.layout_observation(),
+                                'frameGeometry': self.chrome.frame_geometry(),
+                                'resizeHitRoutes': self.chrome.resize_hit_observation(),
+                                'captionHitRoutes': self.chrome.caption_hit_observation(),
                             })
                             self._on_ui(lambda: self.chrome.render_caption(self.state.data_dir / 'native-caption.png'))
                         (self.state.data_dir / 'desktop-observation.json').write_text(json.dumps(observation), 'utf-8')

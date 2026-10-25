@@ -60,6 +60,13 @@ class StartupTests(unittest.TestCase):
             opened.assert_not_called()
         self.assertEqual(self.desktop.calls, ['activate'])
 
+    def test_ui_qa_listener_can_be_restricted_to_loopback(self):
+        server = main.bind_server(0, self.state, loopback_only=True)
+        try:
+            self.assertEqual(server.socket.getsockname()[0], '127.0.0.1')
+        finally:
+            server.server_close()
+
     def test_authenticated_entry_still_establishes_a_local_admin_session(self):
         launched = launcher.post(launcher.local_client(), f'http://127.0.0.1:{self.state.port}', '/api/desktop-launch', {'token': self.state.admin_token})
         url = launched['url']

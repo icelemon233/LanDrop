@@ -21,10 +21,10 @@ def reopen(runtime_file: Path, args) -> bool:
     return launcher.reopen(runtime_file, args)
 
 
-def bind_server(port: int, state: State, desktop=None):
+def bind_server(port: int, state: State, desktop=None, *, loopback_only=False):
     for attempt in range(20):
         try:
-            server = Server(('0.0.0.0', port if attempt == 0 else 0), state, desktop)
+            server = Server(('127.0.0.1' if loopback_only else '0.0.0.0', port if attempt == 0 else 0), state, desktop)
         except OSError:
             continue
         if server.server_port in BAD_PORTS:
@@ -52,7 +52,9 @@ def run(args, data_dir: Path, runtime_file: Path):
     scanner = None
     serving = None
     try:
-        server = bind_server(args.port, state, desktop)
+        if getattr(args, 'qa_loopback', False):
+            state.ips, state.selected_ip = ['127.0.0.1'], '127.0.0.1'
+        server = bind_server(args.port, state, desktop, loopback_only=getattr(args, 'qa_loopback', False))
         scanner = threading.Thread(target=state.scan_loop, daemon=True)
         scanner.start()
         serving = threading.Thread(target=server.serve_forever, daemon=True)
@@ -100,9 +102,12 @@ def main():
     maintenance.add_argument('--check-running', action='store_true', help='安装器检查；运行中返回 10')
     maintenance.add_argument('--prepare-upgrade', action='store_true', help='安装器请求正常退出，并等待进程结束')
     parser.add_argument('--test-data', action='store_true', help='标记合成文件验证；需要独立的 --state-dir')
+    parser.add_argument('--qa-loopback', action='store_true', help='隔离界面 QA 仅监听回环地址；需要 --test-data')
     args = parser.parse_args()
     if args.test_data and args.state_dir is None:
         parser.error('测试模式需要独立的 --state-dir，避免使用日常数据。')
+    if args.qa_loopback and not args.test_data:
+        parser.error('--qa-loopback 仅供独立 --test-data 界面验证使用。')
     if not 0 <= args.port <= 65535:
         parser.error('端口需要在 0 到 65535 之间。')
     if args.port in BAD_PORTS:

@@ -40,15 +40,18 @@ Automatic port selection skips browser-blocked ports from the [Fetch standard](h
 ```powershell
 python scripts/package.py
 python scripts/smoke_exe.py dist/LanDrop.exe
-python scripts/build_installer.py --nsis-archive D:/Tools/nsis-3.13.zip
+python scripts/build_installer.py
+python scripts/test_installer.py
 ```
 
-Use the official NSIS 3.13 ZIP from [NSIS](https://nsis.sourceforge.io/Download), SHA-256 `ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8`. The build verifies it before extraction. See the [NSIS manual](https://nsis.sourceforge.io/Docs/Chapter4.html) for syntax. Installation is per user, with a directory page, Start menu and optional desktop shortcut. `/S` refuses a running app; explicit `/CLOSEAPP` allows normal shutdown. Never force-kill an old app to replace it.
+The installer uses pinned Inno Setup 7.1.0 and the [shared native installer](../installer/inno/README.md). The compiler download is verified by SHA-256 and publisher, then used in portable mode. `--compiler <ISCC.exe>` selects an existing copy. The settings drawer offers current-user/all-users scope, a destination and separate desktop/Start menu choices. All-users mode requests Windows elevation only after Install. Current-user mode does not.
 
-Installers and uninstallers share a session-local maintenance mutex. A repeat interactive launch restores the existing wizard, identified by an AppKey-specific window property; it leaves that operation in control. A busy repeat exits with code 12, including silent requests. Failure to create the lock exits with code 21 before modifying files. Window properties are removed and the handle is closed when the wizard ends; silent processes release their handles on exit. See the [NSIS single-instance example](https://nsis.sourceforge.io/Allow_only_one_installer_instance) and Microsoft's [window property lifecycle](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setpropw).
+Setup and uninstall share a maintenance mutex and request normal exit through the existing authenticated application protocol. `/VERYSILENT /CURRENTUSER /SUPPRESSMSGBOXES /NORESTART` refuses a running app; adding `/CLOSEAPP` permits normal shutdown. No process is force-killed. Legacy registration is retired after a successful install in its existing directory. Changing an existing destination requires uninstalling first. User data and unrelated installation-directory files remain.
 
 The smoke test uses Python's standard `BROWSER` override as a trap: any external-browser launch fails the check. With isolated `--test-data`, the real window records a read-only observation of its authenticated UI, then the script checks window reuse, redirect/cookie flow, restart and file hashes. The observer does not operate the GUI or record connection credentials. Headless mode is explicit; it does not launch a browser. The legacy `--no-browser` flag remains accepted for compatibility.
 
-For installer QA, build with `--qa-state` and a unique `--qa-id`; use fresh paths under the project's ignored `.local/` directory. Registry keys, shortcuts, files and user data remain isolated. The Microsoft bootstrapper is pinned in `resources/webview2-bootstrapper.json`; the builder checks its hash and Microsoft Authenticode signature. Only missing runtimes are installed. The bootstrapper and NSIS tools are build inputs, not source files.
+For an isolated visible native installer, pass `--qa-root .local/inno-qa-<32-character GUID>`; the root must be inside this project. Registry keys, shortcuts, files and user data are isolated at compile time. `scripts/test_installer.py` builds its own QA installer. The Microsoft bootstrapper remains pinned in `resources/webview2-bootstrapper.json`; the builder verifies its hash and Microsoft signature. QA refuses to modify shared runtimes. All-users UAC and a genuinely missing runtime need separate interactive verification.
 
 The original Cinna portrait is in `resources/cinna-portrait.png`. Use Pillow with `scripts/export_brand.py` to re-export icons. WebView and native caption/menu colors come from landrop/ui_theme.json; scripts/build.mjs generates the browser theme stylesheet. Assets and fonts are not fetched at runtime.
+
+The full-window scene, settings drawer, red cancellation button, completion actions and upgrade recovery share one implementation. Run `installer/inno/test-custom.ps1` alongside the existing installer tests. Current evidence and manual verification limits are in [custom-installer-validation.md](custom-installer-validation.md).

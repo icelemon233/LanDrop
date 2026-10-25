@@ -38,11 +38,22 @@ test('system changes follow auto mode while manual choice and privacy survive re
   color.listener();
   assert.equal(env.root.dataset.theme, 'light');
   preferences.togglePrivacy();
-  preferences.toggleSidebar();
+  preferences.togglePinned();
   const restored = new Preferences(() => {});
-  assert.equal(restored.theme, 'light'); assert.equal(restored.private, true); assert.equal(restored.collapsed, true);
+  assert.equal(restored.theme, 'light'); assert.equal(restored.private, true); assert.equal(restored.pinned, false);
   assert.ok(changes >= 4);
   restored.dispose(); preferences.dispose();
+});
+
+test('the explicit old sidebar preference migrates and only a new pin choice is written', () => {
+  const env = environment({ 'landrop.sidebar-collapsed': 'true' });
+  const preferences = new Preferences(() => {});
+  assert.equal(preferences.pinned, false);
+  preferences.togglePinned();
+  assert.equal(env.values.get('landrop.sidebar-pinned'), 'true');
+  assert.equal(env.values.get('landrop.sidebar-collapsed'), 'true');
+  assert.equal([...env.values.keys()].some(key => /hover|drawer/.test(key)), false);
+  preferences.dispose();
 });
 
 test('appearance remains usable when device storage is unavailable', () => {

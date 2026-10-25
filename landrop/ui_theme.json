@@ -6,7 +6,7 @@
     "ink": "#46332A",
     "muted": "#706960",
     "border": "#E4E2DD",
-    "control-border": "#8C8479",
+    "control-border": "#928B82",
     "accent": "#A8DFF1",
     "accent-ink": "#244955",
     "accent-hover": "#BDEAF7",
@@ -20,7 +20,11 @@
     "danger": "#A7364D",
     "danger-bg": "#FBEDEF",
     "danger-ink": "#FFFFFF",
-    "scroll-thumb": "#8C8176"
+    "scroll-thumb": "#8C8176",
+    "hover": "#E8E7E2",
+    "caption-close": "#C42B1C",
+    "caption-close-ink": "#FFFFFF",
+    "accent-pressed": "#8BCBE0"
   },
   "dark": {
     "canvas": "#1B1D20",
@@ -29,7 +33,7 @@
     "ink": "#F2EFEA",
     "muted": "#B8B2AA",
     "border": "#3B4147",
-    "control-border": "#7B838C",
+    "control-border": "#747D87",
     "accent": "#A8DFF1",
     "accent-ink": "#20343D",
     "accent-hover": "#BDEAF7",
@@ -43,6 +47,10 @@
     "danger": "#F6A6B6",
     "danger-bg": "#452B33",
     "danger-ink": "#3F2029",
-    "scroll-thumb": "#7B838C"
+    "scroll-thumb": "#7B838C",
+    "hover": "#30343A",
+    "caption-close": "#C42B1C",
+    "caption-close-ink": "#FFFFFF",
+    "accent-pressed": "#8BCBE0"
   }
 }

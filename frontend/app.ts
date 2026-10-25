@@ -7,6 +7,7 @@ import { View, type ViewName } from './ui/view.js';
 import { element, escape as e, copy } from './ui/dom.js';
 import { icon } from './icons.js';
 import { trackInputModality } from './ui/focus.js';
+import { Selects } from './ui/select.js';
 
 const disposeFocus = trackInputModality();
 
@@ -17,6 +18,7 @@ let toastTimer = 0, pollTimer = 0, paused = false, nativeTheme = '', folderDraft
 const preferences = new Preferences(() => render());
 const view = new View(preferences);
 const dialogs = new Dialogs();
+const selects = new Selects((select, value) => { void changeSelect(select, value).catch(report); });
 const session = new SessionController(() => render(), undefined, desktopClient);
 const uploads = new UploadQueue(element('#transfers'), () => session.invalidate(), toast);
 
@@ -30,6 +32,7 @@ function render(): void {
   document.body.dataset.connectionPhase = session.connection.phase;
   document.body.dataset.role = session.connection.snapshot?.role ?? '';
   view.render(session.connection);
+  selects.refresh();
   const state = session.connection.snapshot;
   if (state?.desktop && session.connection.phase === 'connected' && nativeTheme !== `${preferences.theme}|${preferences.resolved}`) {
     nativeTheme = `${preferences.theme}|${preferences.resolved}`;
@@ -53,8 +56,9 @@ function route(): void {
 function chooseView(next: string | undefined): void {
   if (!['shared','received','activity','settings'].includes(next ?? '') || (session.connection.snapshot?.role !== 'admin' && next !== 'settings' && next !== 'shared')) return;
   const url = new URL(location.href); if (next === 'shared') url.searchParams.delete('view'); else url.searchParams.set('view', next!);
-  history.pushState(null, '', url.pathname + url.search); route();
-  element('#page-title').setAttribute('tabindex', '-1'); element('#page-title').focus({ preventScroll: true });
+  history.pushState(null, '', url.pathname + url.search); view.closeDrawer(); route();
+  const heading = element(session.connection.snapshot?.role === 'phone' ? '#mobile-page-title' : '#page-title');
+  heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true });
 }
 function schedulePoll(): void {
   clearTimeout(pollTimer);
@@ -90,7 +94,9 @@ async function action(button: HTMLElement): Promise<void> {
   if (name === 'close-dialog') { dialogs.close(); return; }
   if (name === 'confirm-dialog') return dialogs.accept();
   if (name === 'help') return help();
-  if (name === 'toggle-sidebar') { preferences.toggleSidebar(); return; }
+  if (name === 'toggle-sidebar') { view.toggleDrawer(); return; }
+  if (name === 'close-sidebar') { view.closeDrawer(); return; }
+  if (name === 'toggle-pin') { view.togglePin(); return; }
   if (name === 'privacy') { preferences.togglePrivacy(); return; }
   if (name === 'retry') { await session.refresh(); schedulePoll(); return; }
   if (name === 'check-upload') return uploads.check(identifier);
@@ -163,14 +169,19 @@ document.addEventListener('submit', event => {
     finally { controls.forEach(control => { control.disabled = false; }); if (document.activeElement === document.body && returnTo?.isConnected) returnTo.focus({ preventScroll: true }); }
   });
 });
+async function changeSelect(input: HTMLSelectElement, value: string): Promise<void> {
+  if (input.name === 'theme') { preferences.setTheme(value); return; }
+  if (input.id === 'close-behavior') {
+    const feedback = element('#window-feedback'); input.disabled = true; selects.refresh(); feedback.textContent = '正在保存…'; feedback.classList.remove('error-text');
+    try { await request('/api/admin/window-close-behavior', { behavior: value }); await session.invalidate(); feedback.textContent = '关闭方式已保存。'; }
+    catch (error) { feedback.textContent = error instanceof Error ? error.message : '保存失败，请重试。'; feedback.classList.add('error-text'); input.value = session.connection.snapshot?.desktop?.closeBehavior ?? 'tray'; }
+    finally { input.disabled = false; selects.refresh(); }
+  }
+  if (input.id === 'address-select') await run('address', async () => { await request('/api/admin/address', { address: value }); await session.invalidate(); });
+}
 document.addEventListener('change', event => {
   const input = event.target as HTMLInputElement;
-  if (input.name === 'theme') preferences.setTheme(input.value);
-  if (input.id === 'close-behavior') {
-    const feedback = element('#window-feedback'); input.disabled = true; feedback.textContent = '正在保存…'; feedback.classList.remove('error-text');
-    void request('/api/admin/window-close-behavior', { behavior: input.value }).then(() => session.invalidate()).then(() => { feedback.textContent = '关闭方式已保存。'; }).catch(error => { feedback.textContent = error instanceof Error ? error.message : '保存失败，请重试。'; feedback.classList.add('error-text'); input.value = session.connection.snapshot?.desktop?.closeBehavior ?? 'tray'; }).finally(() => { input.disabled = false; });
-  }
-  if (input.id === 'address-select') void run('address', async () => { await request('/api/admin/address', { address: input.value }); await session.invalidate(); }).catch(report);
+  if (input instanceof HTMLSelectElement) { void changeSelect(input, input.value).catch(report); return; }
   if (input.id === 'file-input') { try { connected(); uploads.add(Array.from(input.files ?? [])); } catch (error) { report(error); } input.value = ''; }
 });
 let dragDepth = 0;
@@ -191,6 +202,6 @@ document.addEventListener('drop', event => {
 window.addEventListener('popstate', route);
 window.addEventListener('hashchange', () => { const values = new URLSearchParams(location.hash.slice(1)); if (values.has('admin') || values.has('pair')) location.reload(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !paused) void session.refresh().finally(schedulePoll); });
-window.addEventListener('pagehide', () => { paused = true; clearTimeout(pollTimer); uploads.dispose(); session.stop(); preferences.dispose(); disposeFocus(); });
+window.addEventListener('pagehide', () => { paused = true; clearTimeout(pollTimer); uploads.dispose(); session.stop(); preferences.dispose(); view.dispose(); selects.dispose(); disposeFocus(); });
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 void start().catch(report);
