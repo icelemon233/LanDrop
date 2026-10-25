@@ -25,8 +25,9 @@ if($publishExisting.Count -eq 0){
 }
 & gh release upload $publishTag @Files --repo $publishRepo --clobber
 if($LASTEXITCODE -ne 0){throw 'Release upload failed.'}
-$publishDraft=& gh api ('repos/'+$publishRepo+'/releases/tags/'+$publishTag) | ConvertFrom-Json
-if($LASTEXITCODE -ne 0 -or -not $publishDraft.draft){throw 'Expected the release to remain unpublished during asset verification.'}
+$publishDrafts=@((& gh api ('repos/'+$publishRepo+'/releases?per_page=100') | ConvertFrom-Json) | Where-Object tag_name -eq $publishTag)
+if($LASTEXITCODE -ne 0 -or $publishDrafts.Count -ne 1 -or -not $publishDrafts[0].draft){throw 'Expected the release to remain unpublished during asset verification.'}
+$publishDraft=$publishDrafts[0]
 foreach($publishFile in $Files){
   $publishName=[IO.Path]::GetFileName($publishFile)
   $publishAsset=@($publishDraft.assets | Where-Object name -eq $publishName)
