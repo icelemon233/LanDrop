@@ -16,7 +16,7 @@ $qaRecord = Get-Content -LiteralPath ($qaSetup+'.build.json') -Raw | ConvertFrom
 if($qaRecord.qaRoot -ne $qaRoot){throw 'Never run installer integration against a production build.'}
 $qaKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\'+$qaRecord.setupId+'_is1'
 $qaLegacyKey = 'Software\Cinna\InstallerQA\'+$qaId+'\Legacy'
-$qaApplication = Join-Path $qaRoot '程序 安装'
+$qaApplication = Join-Path $qaRoot '程序 安装 🧊'
 $qaData = Join-Path $qaRoot 'data'
 New-Item -ItemType Directory -Path $qaData,$qaApplication -Force | Out-Null
 $qaUserFile = Join-Path $qaApplication '用户保留文件.txt'
