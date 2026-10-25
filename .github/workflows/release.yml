@@ -34,10 +34,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Frontend dependencies failed' }
           pnpm check
           if ($LASTEXITCODE -ne 0) { throw 'Frontend typecheck failed' }
-          pnpm test
-          if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed' }
           pnpm build
           if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
+          pnpm test
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed' }
           python -m pip install -r requirements-build.txt
           if ($LASTEXITCODE -ne 0) { throw 'Build dependencies failed' }
           python -m unittest discover -s tests -v
