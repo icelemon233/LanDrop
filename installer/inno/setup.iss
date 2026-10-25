@@ -345,13 +345,15 @@ begin
 end;
 
 function OwnsShortcut(Path, Target: String): Boolean;
-var Shell, Link: Variant; ActualTarget: String;
+var Shell, Folder, Item, Link: Variant; ActualTarget: String;
 begin
   Result := False;
   if not FileExists(Path) or HasPathLink(Path) then exit;
   try
-    Shell := CreateOleObject('WScript.Shell'); Link := Shell.CreateShortcut(Path);
-    ActualTarget := Link.TargetPath; Result := SamePath(ActualTarget, Target);
+    Shell := CreateOleObject('Shell.Application');
+    Folder := Shell.NameSpace(ExtractFileDir(Path));
+    Item := Folder.ParseName(ExtractFileName(Path)); Link := Item.GetLink;
+    ActualTarget := Link.Path; Result := SamePath(ActualTarget, Target);
     if not Result then Log('Shortcut target mismatch: ' + ActualTarget + ' <> ' + Target);
   except
     Log('Shortcut ownership could not be verified: ' + Path);
@@ -610,7 +612,7 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
-var OldDirectory, OldLink: String; Shell, Link: Variant;
+var OldDirectory, OldLink: String;
 begin
   if CurStep = ssInstall then begin
     InstallWriteStarted := True;
@@ -626,13 +628,7 @@ begin
 #include "legacy-cleanup.iss"
 #if ProductKind == "landrop"
     OldLink := ExpandConstant('{#StartMenuDirectory}\卸载.lnk');
-    if FileExists(OldLink) then try
-      Shell := CreateOleObject('WScript.Shell');
-      Link := Shell.CreateShortcut(OldLink);
-      if SamePath(Link.TargetPath, AddBackslash(OldDirectory) + 'Uninstall.exe') then DeleteFile(OldLink);
-    except
-      Log('Legacy shortcut could not be inspected: ' + GetExceptionMessage);
-    end;
+    RemoveOwnedShortcut(OldLink, AddBackslash(OldDirectory) + 'Uninstall.exe');
 #endif
     RegDeleteKeyIncludingSubkeys(SelectedRoot, LegacyKey);
   end;
