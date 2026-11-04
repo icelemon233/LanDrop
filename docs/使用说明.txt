@@ -1,7 +1,7 @@
-LanDrop 1.2.2
+LanDrop
 
 安装与打开
-运行“LanDrop-v1.2.2-windows-x64-setup.exe”，选择安装位置。重复打开安装包会回到已有的安装或卸载向导。安装完成后，通过桌面或开始菜单中的“LanDrop”打开应用窗口，查看共享文件和二维码。
+从 GitHub Releases 下载当前 Windows 安装程序，运行后选择安装位置。重复打开安装包会回到已有的安装或卸载向导。安装完成后，通过桌面或开始菜单中的“LanDrop”打开应用窗口，查看共享文件和二维码。
 支持 Windows 10/11 x64。无需安装 Python、Node.js 或手机应用。安装包尚未进行代码签名。
 缺少 Microsoft Edge WebView2 时，安装程序会安装该运行时，需要连接互联网。已有运行时时不会重复安装。
 
